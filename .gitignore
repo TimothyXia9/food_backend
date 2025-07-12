@@ -1,0 +1,11 @@
+/node_modules
+/.env
+/.vscode
+
+/build
+/dist
+
+eslint.config.js
+
+/public
+venv/
