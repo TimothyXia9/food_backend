@@ -1,11 +1,27 @@
-/node_modules
-/.env
-/.vscode
+# Dependencies
+node_modules/
 
-/build
-/dist
+# Environment variables
+.env
 
+# IDE
+.vscode/
+
+# Build outputs
+build/
+dist/
+
+# Configuration
 eslint.config.js
 
-/public
+# Static files
+public/
+
+# Python virtual environment
 venv/
+
+# Database
+db.sqlite3
+
+# Python cache
+__pycache__/
