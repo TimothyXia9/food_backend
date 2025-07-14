@@ -16,7 +16,6 @@ This document outlines the database schema for the calorie tracking web applicat
 | username      | VARCHAR(150) | UNIQUE, NOT NULL            | User's chosen username |
 | email         | VARCHAR(254) | UNIQUE, NOT NULL            | User's email address   |
 | password_hash | VARCHAR(128) | NOT NULL                    | Hashed password        |
-| nickname      | VARCHAR(30)  | NULL                        | User's nickname        |
 | date_joined   | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP   | Account creation date  |
 | last_login    | TIMESTAMP    | NULL                        | Last login timestamp   |
 
