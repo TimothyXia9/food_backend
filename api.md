@@ -175,14 +175,13 @@ PUT /users/profile
 
 #### Search Foods
 ```
-GET /foods/search?q=<query>&category=<category_id>&limit=<limit>&offset=<offset>
+GET /foods/search?query=<query>&page=<page>&page_size=<page_size>
 ```
 
 **Query Parameters:**
-- `q`: Search query (required)
-- `category`: Filter by category ID (optional)
-- `limit`: Number of results (default: 20)
-- `offset`: Pagination offset (default: 0)
+- `query`: Search query (required)
+- `page`: Page number (default: 1)
+- `page_size`: Number of results per page (default: 20, max: 100)
 
 **Response:**
 ```json
@@ -249,9 +248,74 @@ GET /foods/{food_id}
 }
 ```
 
+#### Search USDA Foods
+```
+GET /foods/usda/search?query=<query>&page_size=<page_size>
+```
+
+**Query Parameters:**
+- `query`: Search query (required)
+- `page_size`: Number of results (default: 25, max: 100)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total_results": 156,
+    "foods": [
+      {
+        "fdc_id": 1102702,
+        "description": "Apples, raw, with skin",
+        "data_type": "Foundation",
+        "brand_owner": "",
+        "ingredients": ""
+      }
+    ]
+  }
+}
+```
+
+#### Get USDA Nutrition Data
+```
+GET /foods/usda/nutrition/{fdc_id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "food_description": "Apples, raw, with skin",
+    "fdc_id": 1102702,
+    "nutrients": {
+      "calories": 52,
+      "protein": 0.26,
+      "fat": 0.17,
+      "carbs": 13.8,
+      "fiber": 2.4,
+      "sugar": 10.4,
+      "sodium": 1
+    }
+  }
+}
+```
+
+#### Create Food from USDA
+```
+POST /foods/usda/create
+```
+
+**Request Body:**
+```json
+{
+  "fdc_id": 1102702
+}
+```
+
 #### Create Custom Food
 ```
-POST /foods
+POST /foods/custom
 ```
 
 **Request Body:**
@@ -524,7 +588,7 @@ POST /images/upload
 
 **Request:** (multipart/form-data)
 ```
-file: <image_file>
+image: <image_file>
 meal_id: <meal_id> (optional)
 ```
 
@@ -533,20 +597,70 @@ meal_id: <meal_id> (optional)
 {
   "success": true,
   "data": {
-    "image": {
-      "id": 1,
-      "filename": "food_image.jpg",
-      "file_size": 1024000,
-      "processing_status": "pending",
-      "uploaded_at": "2024-01-15T12:00:00Z"
-    }
-  }
+    "id": 1,
+    "filename": "food_image.jpg",
+    "file_size": 1024000,
+    "processing_status": "pending",
+    "uploaded_at": "2024-01-15T12:00:00Z"
+  },
+  "message": "Image uploaded successfully"
 }
 ```
 
-#### Get Recognition Results
+#### Analyze Image
 ```
-GET /images/{image_id}/recognition
+POST /images/analyze
+```
+
+**Request Body:**
+```json
+{
+  "image_id": 1
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "image_id": 1,
+    "analysis_result": {
+      "foods_with_nutrition": [
+        {
+          "combined_data": {
+            "name": "Apple",
+            "estimated_weight_grams": 150,
+            "cooking_method": "raw",
+            "confidence": 0.92,
+            "nutrition_per_portion": {
+              "calories": 78,
+              "protein_g": 0.39,
+              "fat_g": 0.26,
+              "carbs_g": 20.7,
+              "fiber_g": 3.6
+            }
+          }
+        }
+      ],
+      "summary": {
+        "total_nutrition": {
+          "calories": 78,
+          "protein_g": 0.39,
+          "fat_g": 0.26,
+          "carbs_g": 20.7,
+          "fiber_g": 3.6
+        }
+      }
+    }
+  },
+  "message": "Image analysis completed successfully"
+}
+```
+
+#### Get Image Analysis Results
+```
+GET /images/{image_id}/results
 ```
 
 **Response:**
@@ -559,44 +673,77 @@ GET /images/{image_id}/recognition
     "results": [
       {
         "id": 1,
-        "food": {
-          "id": 1,
-          "name": "Apple",
-          "calories_per_100g": 52
-        },
+        "food_name": "Apple",
         "confidence_score": 0.9234,
         "estimated_quantity": 150,
-        "is_confirmed": false
+        "is_confirmed": false,
+        "nutrition": {
+          "calories": 78,
+          "protein": 0.39,
+          "fat": 0.26,
+          "carbs": 20.7
+        }
       }
     ]
   }
 }
 ```
 
-#### Confirm Recognition Result
+#### Confirm Food Recognition
 ```
-POST /images/{image_id}/recognition/{result_id}/confirm
-```
-
-**Request Body:**
-```json
-{
-  "confirmed": true,
-  "adjusted_quantity": 150
-}
-```
-
-#### Add Recognition Result to Meal
-```
-POST /images/{image_id}/recognition/{result_id}/add-to-meal
+POST /images/confirm
 ```
 
 **Request Body:**
 ```json
 {
-  "meal_id": 1,
-  "quantity": 150
+  "result_id": 1,
+  "is_confirmed": true
 }
+```
+
+#### Create Meal from Image
+```
+POST /images/create-meal
+```
+
+**Request Body:**
+```json
+{
+  "image_id": 1,
+  "meal_type": "breakfast",
+  "date": "2024-01-15",
+  "meal_name": "Morning Meal"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "meal_id": 1,
+    "total_calories": 78,
+    "foods_added": [
+      {
+        "food_name": "Apple",
+        "quantity": 150,
+        "calories": 78
+      }
+    ]
+  },
+  "message": "Meal created successfully"
+}
+```
+
+#### Get User Images
+```
+GET /images/list?page=<page>&page_size=<page_size>
+```
+
+#### Delete Image
+```
+DELETE /images/{image_id}/delete
 ```
 
 ### 8. Search & Logging
