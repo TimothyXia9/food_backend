@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from token import OP
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-006vdf%35^m0_sd%+jom_%4%=yd%5=dy&(3d83!((l30#*gs0^'
+SECRET_KEY = "django-insecure-006vdf%35^m0_sd%+jom_%4%=yd%5=dy&(3d83!((l30#*gs0^"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -31,61 +32,65 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
-    'corsheaders',
-    'accounts',
-    'foods',
-    'meals',
-    'images',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
+    "accounts",
+    "foods",
+    "meals",
+    "images",
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Custom logging middleware
+    "calorie_tracker.middleware.RequestLoggingMiddleware",
+    "calorie_tracker.middleware.PerformanceLoggingMiddleware",
+    "calorie_tracker.middleware.SecurityLoggingMiddleware",
 ]
 
-ROOT_URLCONF = 'calorie_tracker.urls'
+ROOT_URLCONF = "calorie_tracker.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'calorie_tracker.wsgi.application'
+WSGI_APPLICATION = "calorie_tracker.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -95,16 +100,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -112,9 +117,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -124,32 +129,33 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST Framework configuration
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    'PAGE_SIZE': 20
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 20,
 }
 
 # JWT Settings
 from datetime import timedelta
+
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # CORS Settings
@@ -162,8 +168,168 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Media files for image uploads
 import os
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Custom user model
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = "accounts.User"
+
+from dotenv import load_dotenv
+
+load_dotenv()
+import json
+
+
+USDA_API_KEYS = json.loads(os.getenv("USDA_API_KEYS", "[]"))
+OPENAI_API_KEYS = json.loads(os.getenv("OPENAI_API_KEYS", "[]"))
+
+# Logging Configuration
+LOGGING = {
+	'version': 1,
+	'disable_existing_loggers': False,
+	'formatters': {
+		'verbose': {
+			'format': '[{levelname}] {asctime} {name} {process:d} {thread:d} - {message}',
+			'style': '{',
+		},
+		'simple': {
+			'format': '[{levelname}] {asctime} - {message}',
+			'style': '{',
+		},
+		'detailed': {
+			'format': '[{levelname}] {asctime} {name} {funcName}:{lineno} - {message}',
+			'style': '{',
+		},
+	},
+	'filters': {
+		'require_debug_false': {
+			'()': 'django.utils.log.RequireDebugFalse',
+		},
+		'require_debug_true': {
+			'()': 'django.utils.log.RequireDebugTrue',
+		},
+	},
+	'handlers': {
+		'console': {
+			'level': 'INFO',
+			'filters': ['require_debug_true'],
+			'class': 'logging.StreamHandler',
+			'formatter': 'simple'
+		},
+		'console_debug': {
+			'level': 'DEBUG',
+			'filters': ['require_debug_true'],
+			'class': 'logging.StreamHandler',
+			'formatter': 'detailed'
+		},
+		'file_general': {
+			'level': 'INFO',
+			'class': 'logging.handlers.RotatingFileHandler',
+			'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+			'maxBytes': 1024*1024*10,  # 10 MB
+			'backupCount': 5,
+			'formatter': 'verbose',
+		},
+		'file_debug': {
+			'level': 'DEBUG',
+			'class': 'logging.handlers.RotatingFileHandler',
+			'filename': os.path.join(BASE_DIR, 'logs', 'debug.log'),
+			'maxBytes': 1024*1024*10,  # 10 MB
+			'backupCount': 3,
+			'formatter': 'detailed',
+		},
+		'file_error': {
+			'level': 'ERROR',
+			'class': 'logging.handlers.RotatingFileHandler',
+			'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
+			'maxBytes': 1024*1024*10,  # 10 MB
+			'backupCount': 5,
+			'formatter': 'verbose',
+		},
+		'file_api': {
+			'level': 'INFO',
+			'class': 'logging.handlers.RotatingFileHandler',
+			'filename': os.path.join(BASE_DIR, 'logs', 'api.log'),
+			'maxBytes': 1024*1024*10,  # 10 MB
+			'backupCount': 5,
+			'formatter': 'verbose',
+		},
+		'file_openai': {
+			'level': 'INFO',
+			'class': 'logging.handlers.RotatingFileHandler',
+			'filename': os.path.join(BASE_DIR, 'logs', 'openai.log'),
+			'maxBytes': 1024*1024*10,  # 10 MB
+			'backupCount': 3,
+			'formatter': 'detailed',
+		},
+		'file_usda': {
+			'level': 'INFO',
+			'class': 'logging.handlers.RotatingFileHandler',
+			'filename': os.path.join(BASE_DIR, 'logs', 'usda.log'),
+			'maxBytes': 1024*1024*5,  # 5 MB
+			'backupCount': 3,
+			'formatter': 'detailed',
+		},
+	},
+	'loggers': {
+		'django': {
+			'handlers': ['console', 'file_general'],
+			'level': 'INFO',
+			'propagate': False,
+		},
+		'django.request': {
+			'handlers': ['console', 'file_api', 'file_error'],
+			'level': 'WARNING',
+			'propagate': False,
+		},
+		'django.db.backends': {
+			'handlers': ['console_debug', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		# App-specific loggers
+		'accounts': {
+			'handlers': ['console', 'file_api', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		'foods': {
+			'handlers': ['console', 'file_api', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		'meals': {
+			'handlers': ['console', 'file_api', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		'images': {
+			'handlers': ['console', 'file_api', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		# External service loggers
+		'calorie_tracker.openai_service': {
+			'handlers': ['console', 'file_openai', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		'foods.usda_service': {
+			'handlers': ['console', 'file_usda', 'file_debug'],
+			'level': 'DEBUG',
+			'propagate': False,
+		},
+		# API request logging
+		'api_requests': {
+			'handlers': ['console', 'file_api'],
+			'level': 'INFO',
+			'propagate': False,
+		},
+		# Root logger for everything else
+		'': {
+			'handlers': ['console', 'file_general', 'file_error'],
+			'level': 'INFO',
+		},
+	},
+}

@@ -14,7 +14,7 @@ from django.db import transaction
 from decimal import Decimal
 
 from .models import UploadedImage, FoodRecognitionResult
-from foods.models import Food, FoodCategory, FoodSearchLog
+from foods.models import Food, FoodSearchLog
 from foods.services import FoodDataService
 from meals.models import Meal, MealFood
 from calorie_tracker.openai_service import get_openai_service

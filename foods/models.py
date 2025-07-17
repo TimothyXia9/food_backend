@@ -2,24 +2,9 @@ from django.db import models
 from django.conf import settings
 
 
-class FoodCategory(models.Model):
-	"""Categories for organizing foods"""
-	name = models.CharField(max_length=100, unique=True)
-	description = models.TextField(null=True, blank=True)
-	created_at = models.DateTimeField(auto_now_add=True)
-
-	class Meta:
-		verbose_name_plural = "Food Categories"
-		ordering = ['name']
-
-	def __str__(self):
-		return self.name
-
-
 class Food(models.Model):
 	"""Food items with nutritional information"""
 	name = models.CharField(max_length=200)
-	category = models.ForeignKey(FoodCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='foods')
 	brand = models.CharField(max_length=100, null=True, blank=True)
 	barcode = models.CharField(max_length=50, null=True, blank=True)
 	serving_size = models.DecimalField(max_digits=8, decimal_places=2, help_text="Default serving size in grams")
@@ -34,13 +19,14 @@ class Food(models.Model):
 	created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_foods')
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
+	usda_fdc_id = models.CharField(max_length=20, null=True, blank=True, help_text="USDA FoodData Central ID")
 
 	class Meta:
 		ordering = ['name']
 		indexes = [
 			models.Index(fields=['name']),
-			models.Index(fields=['category']),
 			models.Index(fields=['created_by']),
+			models.Index(fields=['usda_fdc_id']),
 		]
 
 	def __str__(self):

@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
+import logging
 from .models import User, UserProfile, UserActivityLog
 from .serializers import (
 	UserRegistrationSerializer, 
@@ -13,6 +14,9 @@ from .serializers import (
 	UserProfileUpdateSerializer,
 	CustomTokenObtainPairSerializer
 )
+
+# Get logger for this module
+logger = logging.getLogger('accounts')
 
 
 def create_response(success=True, data=None, message="", error=None):
@@ -27,9 +31,12 @@ class UserRegistrationView(APIView):
 	permission_classes = [permissions.AllowAny]
 
 	def post(self, request):
+		logger.info(f"User registration attempt for username: {request.data.get('username', 'N/A')}")
+		
 		serializer = UserRegistrationSerializer(data=request.data)
 		if serializer.is_valid():
 			user = serializer.save()
+			logger.info(f"User registered successfully: {user.username} (ID: {user.id})")
 			
 			# Generate tokens
 			refresh = RefreshToken.for_user(user)
@@ -54,6 +61,7 @@ class UserRegistrationView(APIView):
 				status=status.HTTP_201_CREATED
 			)
 		
+		logger.warning(f"User registration failed: {serializer.errors}")
 		return Response(
 			create_response(success=False, error={
 				"code": "VALIDATION_ERROR",
@@ -69,10 +77,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 	permission_classes = [permissions.AllowAny]
 
 	def post(self, request, *args, **kwargs):
+		username = request.data.get('username', 'N/A')
+		logger.info(f"Login attempt for username: {username}")
+		
 		serializer = self.get_serializer(data=request.data)
 		
 		if serializer.is_valid():
 			user = serializer.user
+			logger.info(f"User logged in successfully: {user.username} (ID: {user.id})")
 			
 			# Update last login
 			user.last_login = timezone.now()
@@ -91,6 +103,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 				status=status.HTTP_200_OK
 			)
 		
+		logger.warning(f"Login failed for username: {username}, errors: {serializer.errors}")
 		return Response(
 			create_response(success=False, error={
 				"code": "AUTHENTICATION_ERROR",
@@ -126,11 +139,14 @@ class LogoutView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
 	def post(self, request):
+		logger.info(f"Logout attempt for user: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+		
 		try:
 			refresh_token = request.data.get("refresh_token")
 			if refresh_token:
 				token = RefreshToken(refresh_token)
 				token.blacklist()
+				logger.debug(f"Refresh token blacklisted for user: {request.user.username}")
 			
 			# Log activity
 			UserActivityLog.objects.create(
@@ -140,11 +156,13 @@ class LogoutView(APIView):
 				user_agent=request.META.get('HTTP_USER_AGENT')
 			)
 			
+			logger.info(f"User logged out successfully: {request.user.username}")
 			return Response(
 				create_response(message="Logged out successfully"),
 				status=status.HTTP_200_OK
 			)
 		except Exception as e:
+			logger.error(f"Logout failed for user {request.user.username}: {str(e)}")
 			return Response(
 				create_response(success=False, error={
 					"code": "PROCESSING_ERROR",
@@ -160,6 +178,7 @@ class UserProfileView(APIView):
 
 	def get(self, request):
 		"""Get user profile"""
+		logger.debug(f"Profile view requested by user: {request.user.username}")
 		user_data = UserWithProfileSerializer(request.user).data
 		return Response(
 			create_response(data=user_data),
@@ -168,14 +187,18 @@ class UserProfileView(APIView):
 
 	def put(self, request):
 		"""Update user profile"""
+		logger.info(f"Profile update attempt by user: {request.user.username}")
+		
 		try:
 			profile = request.user.profile
 		except UserProfile.DoesNotExist:
+			logger.info(f"Creating new profile for user: {request.user.username}")
 			profile = UserProfile.objects.create(user=request.user)
 		
 		serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
 		if serializer.is_valid():
 			serializer.save()
+			logger.info(f"Profile updated successfully for user: {request.user.username}")
 			
 			# Log activity
 			UserActivityLog.objects.create(
@@ -192,6 +215,7 @@ class UserProfileView(APIView):
 				status=status.HTTP_200_OK
 			)
 		
+		logger.warning(f"Profile update failed for user {request.user.username}: {serializer.errors}")
 		return Response(
 			create_response(success=False, error={
 				"code": "VALIDATION_ERROR",

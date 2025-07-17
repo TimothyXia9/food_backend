@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from decimal import Decimal
 
-from .models import Food, FoodCategory, FoodAlias, FoodSearchLog
+from .models import Food, FoodAlias, FoodSearchLog
 
 # Import USDA service from testing
 import sys
@@ -24,7 +24,11 @@ class FoodDataService:
 	"""Service for managing food data and USDA integration"""
 	
 	def __init__(self):
-		self.usda_service = USDANutritionAPI()
+		try:
+			self.usda_service = USDANutritionAPI()
+		except Exception as e:
+			logger.warning(f"Failed to initialize USDA service: {e}")
+			self.usda_service = None
 	
 	def search_foods(self, query: str, user_id: int = None, page: int = 1, page_size: int = 20) -> Dict[str, Any]:
 		"""
@@ -232,22 +236,13 @@ class FoodDataService:
 					'message': 'Food already exists'
 				}
 			
-			# Get or create category
-			category = None
-			try:
-				category, _ = FoodCategory.objects.get_or_create(
-					name='USDA Foods',
-					defaults={'description': 'Foods from USDA FoodData Central'}
-				)
-			except:
-				pass
+			# No category needed
 			
 			# Create food record
 			nutrients = nutrition_data.get('nutrients', {})
 			
 			food = Food.objects.create(
 				name=usda_description,
-				category=category,
 				serving_size=Decimal('100.00'),
 				calories_per_100g=Decimal(str(nutrients.get('calories', 0))),
 				protein_per_100g=Decimal(str(nutrients.get('protein', 0))),
@@ -277,17 +272,9 @@ class FoodDataService:
 		"""Create a custom food record"""
 		
 		try:
-			# Get or create category
-			category = None
-			if food_data.get('category_name'):
-				category, _ = FoodCategory.objects.get_or_create(
-					name=food_data['category_name']
-				)
-			
 			# Create food record
 			food = Food.objects.create(
 				name=food_data['name'],
-				category=category,
 				brand=food_data.get('brand', ''),
 				barcode=food_data.get('barcode', ''),
 				serving_size=Decimal(str(food_data.get('serving_size', 100))),
@@ -398,32 +385,6 @@ class FoodDataService:
 				'error': str(e)
 			}
 	
-	def get_food_categories(self) -> Dict[str, Any]:
-		"""Get all food categories"""
-		
-		try:
-			categories = FoodCategory.objects.all()
-			
-			results = []
-			for category in categories:
-				results.append({
-					'id': category.id,
-					'name': category.name,
-					'description': category.description,
-					'food_count': category.foods.count()
-				})
-			
-			return {
-				'success': True,
-				'categories': results
-			}
-			
-		except Exception as e:
-			logger.error(f"Failed to get categories: {str(e)}")
-			return {
-				'success': False,
-				'error': str(e)
-			}
 	
 	def get_user_search_history(self, user_id: int, limit: int = 20) -> Dict[str, Any]:
 		"""Get user's search history"""

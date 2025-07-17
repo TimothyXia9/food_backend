@@ -3,20 +3,7 @@ Food serializers for API responses
 """
 
 from rest_framework import serializers
-from .models import Food, FoodCategory, FoodAlias, FoodSearchLog
-
-
-class FoodCategorySerializer(serializers.ModelSerializer):
-	"""Serializer for food categories"""
-	food_count = serializers.SerializerMethodField()
-	
-	class Meta:
-		model = FoodCategory
-		fields = ['id', 'name', 'description', 'food_count', 'created_at']
-		read_only_fields = ['id', 'created_at']
-	
-	def get_food_count(self, obj):
-		return obj.foods.count()
+from .models import Food, FoodAlias, FoodSearchLog
 
 
 class FoodAliasSerializer(serializers.ModelSerializer):
@@ -30,17 +17,16 @@ class FoodAliasSerializer(serializers.ModelSerializer):
 
 class FoodSerializer(serializers.ModelSerializer):
 	"""Serializer for food items"""
-	category_name = serializers.CharField(source='category.name', read_only=True)
 	aliases = FoodAliasSerializer(many=True, read_only=True)
 	is_custom = serializers.BooleanField(read_only=True)
 	
 	class Meta:
 		model = Food
 		fields = [
-			'id', 'name', 'category', 'category_name', 'brand', 'barcode',
-			'serving_size', 'calories_per_100g', 'protein_per_100g', 'fat_per_100g',
-			'carbs_per_100g', 'fiber_per_100g', 'sugar_per_100g', 'sodium_per_100g',
-			'is_verified', 'is_custom', 'aliases', 'created_at', 'updated_at'
+			'id', 'name', 'brand', 'barcode', 'serving_size', 'calories_per_100g', 
+			'protein_per_100g', 'fat_per_100g', 'carbs_per_100g', 'fiber_per_100g', 
+			'sugar_per_100g', 'sodium_per_100g', 'is_verified', 'is_custom', 'aliases', 
+			'usda_fdc_id', 'created_at', 'updated_at'
 		]
 		read_only_fields = ['id', 'is_verified', 'created_at', 'updated_at']
 
@@ -56,7 +42,6 @@ class FoodSearchResultSerializer(serializers.Serializer):
 	"""Serializer for food search results"""
 	id = serializers.IntegerField()
 	name = serializers.CharField()
-	category = serializers.CharField(allow_null=True)
 	brand = serializers.CharField(allow_null=True)
 	serving_size = serializers.FloatField()
 	calories_per_100g = serializers.FloatField()
@@ -96,7 +81,6 @@ class CreateFoodFromUSDASerializer(serializers.Serializer):
 class CustomFoodSerializer(serializers.Serializer):
 	"""Serializer for creating custom foods"""
 	name = serializers.CharField(max_length=200)
-	category_name = serializers.CharField(max_length=100, required=False)
 	brand = serializers.CharField(max_length=100, required=False, allow_blank=True)
 	barcode = serializers.CharField(max_length=50, required=False, allow_blank=True)
 	serving_size = serializers.DecimalField(max_digits=8, decimal_places=2, default=100)
