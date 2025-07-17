@@ -89,9 +89,9 @@ def search_foods(request):
 					try:
 						FoodSearchLog.objects.create(
 							user=request.user,
-							query=query,
-							results_count=len(foods_data),
-							source='USDA'
+							search_query=query,
+							search_type='text',
+							results_count=len(foods_data)
 						)
 					except Exception as e:
 						print(f"Warning: Could not log search: {e}")
@@ -148,9 +148,9 @@ def search_foods(request):
 			try:
 				FoodSearchLog.objects.create(
 					user=request.user,
-					query=query,
-					results_count=total_count,
-					source='LOCAL'
+					search_query=query,
+					search_type='text',
+					results_count=total_count
 				)
 			except Exception as log_error:
 				logger.warning(f"Failed to log search: {log_error}")
@@ -505,29 +505,83 @@ def create_food_from_usda(request):
 def create_custom_food(request):
 	"""Create a custom food record"""
 	
-	serializer = CustomFoodSerializer(data=request.data)
-	if not serializer.is_valid():
-		return Response({
-			'success': False,
-			'errors': serializer.errors
-		}, status=status.HTTP_400_BAD_REQUEST)
-	
-	service = FoodDataService()
-	result = service.create_custom_food(serializer.validated_data, request.user.id)
-	
-	if result['success']:
+	try:
+		serializer = CustomFoodSerializer(data=request.data)
+		if not serializer.is_valid():
+			return Response({
+				'success': False,
+				'error': {
+					'code': 'VALIDATION_ERROR',
+					'message': 'Invalid data provided',
+					'details': serializer.errors
+				}
+			}, status=status.HTTP_400_BAD_REQUEST)
+		
+		validated_data = serializer.validated_data
+		aliases = validated_data.pop('aliases', [])
+		
+		# Create the food record
+		food = Food.objects.create(
+			name=validated_data['name'],
+			brand=validated_data.get('brand', ''),
+			barcode=validated_data.get('barcode', ''),
+			serving_size=validated_data['serving_size'],
+			calories_per_100g=validated_data['calories_per_100g'],
+			protein_per_100g=validated_data['protein_per_100g'],
+			fat_per_100g=validated_data['fat_per_100g'],
+			carbs_per_100g=validated_data['carbs_per_100g'],
+			fiber_per_100g=validated_data['fiber_per_100g'],
+			sugar_per_100g=validated_data['sugar_per_100g'],
+			sodium_per_100g=validated_data['sodium_per_100g'],
+			is_verified=False,  # Custom foods are not verified by default
+			created_by=request.user
+		)
+		
+		# Create aliases if provided
+		if aliases:
+			for alias in aliases:
+				if alias.strip():
+					FoodAlias.objects.create(
+						food=food,
+						alias=alias.strip()
+					)
+		
+		# Return the created food data
+		food_data = {
+			'id': food.id,
+			'name': food.name,
+			'brand': food.brand,
+			'barcode': food.barcode,
+			'serving_size': float(food.serving_size),
+			'calories_per_100g': float(food.calories_per_100g),
+			'protein_per_100g': float(food.protein_per_100g),
+			'fat_per_100g': float(food.fat_per_100g),
+			'carbs_per_100g': float(food.carbs_per_100g),
+			'fiber_per_100g': float(food.fiber_per_100g),
+			'sugar_per_100g': float(food.sugar_per_100g),
+			'sodium_per_100g': float(food.sodium_per_100g),
+			'is_custom': True,
+			'is_verified': food.is_verified,
+			'created_by': request.user.username,
+			'created_at': food.created_at.isoformat(),
+			'aliases': aliases
+		}
+		
 		return Response({
 			'success': True,
-			'data': {
-				'food_id': result['food_id'],
-				'message': result['message']
-			}
+			'data': food_data,
+			'message': f'Custom food "{food.name}" created successfully'
 		}, status=status.HTTP_201_CREATED)
-	else:
+		
+	except Exception as e:
+		logger.error(f"Error in create_custom_food: {e}")
 		return Response({
 			'success': False,
-			'message': result.get('error', 'Failed to create custom food')
-		}, status=status.HTTP_400_BAD_REQUEST)
+			'error': {
+				'code': 'SERVER_ERROR',
+				'message': 'An error occurred while creating the custom food'
+			}
+		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['PUT'])
@@ -535,19 +589,88 @@ def create_custom_food(request):
 def update_food(request, food_id):
 	"""Update a food record"""
 	
-	service = FoodDataService()
-	result = service.update_food(food_id, request.data, request.user.id)
-	
-	if result['success']:
+	try:
+		# Check if food exists and user can edit it
+		try:
+			food = Food.objects.get(id=food_id, created_by=request.user)
+		except Food.DoesNotExist:
+			return Response({
+				'success': False,
+				'error': {
+					'code': 'NOT_FOUND',
+					'message': 'Food not found or you do not have permission to edit it'
+				}
+			}, status=status.HTTP_404_NOT_FOUND)
+		
+		# Validate the data
+		serializer = CustomFoodSerializer(data=request.data)
+		if not serializer.is_valid():
+			return Response({
+				'success': False,
+				'error': {
+					'code': 'VALIDATION_ERROR',
+					'message': 'Invalid data provided',
+					'details': serializer.errors
+				}
+			}, status=status.HTTP_400_BAD_REQUEST)
+		
+		validated_data = serializer.validated_data
+		aliases = validated_data.pop('aliases', [])
+		
+		# Update the food record
+		for field, value in validated_data.items():
+			setattr(food, field, value)
+		food.save()
+		
+		# Update aliases
+		# Remove existing aliases
+		food.aliases.all().delete()
+		
+		# Create new aliases
+		if aliases:
+			for alias in aliases:
+				if alias.strip():
+					FoodAlias.objects.create(
+						food=food,
+						alias=alias.strip()
+					)
+		
+		# Return updated food data
+		food_data = {
+			'id': food.id,
+			'name': food.name,
+			'brand': food.brand,
+			'barcode': food.barcode,
+			'serving_size': float(food.serving_size),
+			'calories_per_100g': float(food.calories_per_100g),
+			'protein_per_100g': float(food.protein_per_100g),
+			'fat_per_100g': float(food.fat_per_100g),
+			'carbs_per_100g': float(food.carbs_per_100g),
+			'fiber_per_100g': float(food.fiber_per_100g),
+			'sugar_per_100g': float(food.sugar_per_100g),
+			'sodium_per_100g': float(food.sodium_per_100g),
+			'is_custom': True,
+			'is_verified': food.is_verified,
+			'created_by': request.user.username,
+			'updated_at': food.updated_at.isoformat(),
+			'aliases': aliases
+		}
+		
 		return Response({
 			'success': True,
-			'message': result['message']
-		})
-	else:
+			'data': food_data,
+			'message': f'Food "{food.name}" updated successfully'
+		}, status=status.HTTP_200_OK)
+		
+	except Exception as e:
+		logger.error(f"Error in update_food: {e}")
 		return Response({
 			'success': False,
-			'message': result.get('error', 'Failed to update food')
-		}, status=status.HTTP_400_BAD_REQUEST)
+			'error': {
+				'code': 'SERVER_ERROR',
+				'message': 'An error occurred while updating the food'
+			}
+		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['DELETE'])
@@ -555,21 +678,125 @@ def update_food(request, food_id):
 def delete_food(request, food_id):
 	"""Delete a custom food record"""
 	
-	service = FoodDataService()
-	result = service.delete_food(food_id, request.user.id)
-	
-	if result['success']:
+	try:
+		# Check if food exists and user can delete it
+		try:
+			food = Food.objects.get(id=food_id, created_by=request.user)
+		except Food.DoesNotExist:
+			return Response({
+				'success': False,
+				'error': {
+					'code': 'NOT_FOUND',
+					'message': 'Food not found or you do not have permission to delete it'
+				}
+			}, status=status.HTTP_404_NOT_FOUND)
+		
+		# Check if food is used in any meals
+		from meals.models import MealFood
+		if MealFood.objects.filter(food=food).exists():
+			return Response({
+				'success': False,
+				'error': {
+					'code': 'FOOD_IN_USE',
+					'message': 'Cannot delete food that is used in meals'
+				}
+			}, status=status.HTTP_400_BAD_REQUEST)
+		
+		food_name = food.name
+		food.delete()
+		
 		return Response({
 			'success': True,
-			'message': result['message']
-		})
-	else:
+			'data': None,
+			'message': f'Food "{food_name}" deleted successfully'
+		}, status=status.HTTP_200_OK)
+		
+	except Exception as e:
+		logger.error(f"Error in delete_food: {e}")
 		return Response({
 			'success': False,
-			'message': result.get('error', 'Failed to delete food')
+			'error': {
+				'code': 'SERVER_ERROR',
+				'message': 'An error occurred while deleting the food'
+			}
+		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_foods(request):
+	"""Get user's custom foods"""
+	
+	try:
+		page = int(request.GET.get('page', 1))
+		page_size = int(request.GET.get('page_size', 20))
+		
+		# Get user's custom foods
+		foods_queryset = Food.objects.filter(
+			created_by=request.user
+		).select_related('created_by', 'category').order_by('-created_at')
+		
+		# Pagination
+		total_count = foods_queryset.count()
+		total_pages = (total_count + page_size - 1) // page_size
+		start_index = (page - 1) * page_size
+		end_index = start_index + page_size
+		foods = foods_queryset[start_index:end_index]
+		
+		# Serialize the results
+		foods_data = []
+		for food in foods:
+			foods_data.append({
+				'id': food.id,
+				'name': food.name,
+				'brand': food.brand,
+				'calories_per_100g': float(food.calories_per_100g),
+				'protein_per_100g': float(food.protein_per_100g) if food.protein_per_100g else None,
+				'fat_per_100g': float(food.fat_per_100g) if food.fat_per_100g else None,
+				'carbs_per_100g': float(food.carbs_per_100g) if food.carbs_per_100g else None,
+				'fiber_per_100g': float(food.fiber_per_100g) if food.fiber_per_100g else None,
+				'sugar_per_100g': float(food.sugar_per_100g) if food.sugar_per_100g else None,
+				'sodium_per_100g': float(food.sodium_per_100g) if food.sodium_per_100g else None,
+				'serving_size': float(food.serving_size),
+				'is_custom': True,
+				'is_verified': food.is_verified,
+				'is_usda': False,
+				'category': {'name': food.category.name if food.category else 'Unknown'},
+				'created_at': food.created_at.isoformat()
+			})
+		
+		return Response({
+			'success': True,
+			'data': {
+				'foods': foods_data,
+				'total_count': total_count,
+				'page': page,
+				'page_size': page_size,
+				'total_pages': total_pages,
+				'source': 'USER_CUSTOM'
+			},
+			'message': f"Found {total_count} custom foods"
+		})
+		
+	except ValueError as e:
+		return Response({
+			'success': False,
+			'error': {
+				'code': 'VALIDATION_ERROR',
+				'message': 'Invalid page or page_size parameter'
+			}
 		}, status=status.HTTP_400_BAD_REQUEST)
-
-
+	except Exception as e:
+		logger.error(f"Error in get_user_foods: {e}")
+		return Response({
+			'success': False,
+			'error': {
+				'code': 'SERVER_ERROR',
+				'message': 'An error occurred while getting user foods'
+			}
+		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -577,18 +804,46 @@ def delete_food(request, food_id):
 def get_search_history(request):
 	"""Get user's search history"""
 	
-	limit = int(request.GET.get('limit', 20))
-	
-	service = FoodDataService()
-	result = service.get_user_search_history(request.user.id, limit)
-	
-	if result['success']:
+	try:
+		limit = int(request.GET.get('limit', 20))
+		
+		# Get user's search history
+		search_logs = FoodSearchLog.objects.filter(
+			user=request.user
+		).order_by('-created_at')[:limit]
+		
+		# Serialize the data
+		searches = []
+		for log in search_logs:
+			searches.append({
+				'id': log.id,
+				'search_query': log.search_query,
+				'search_type': log.search_type,
+				'results_count': log.results_count,
+				'created_at': log.created_at.isoformat()
+			})
+		
 		return Response({
 			'success': True,
-			'data': result['searches']
+			'data': {
+				'searches': searches
+			}
 		})
-	else:
+		
+	except ValueError:
 		return Response({
 			'success': False,
-			'message': result.get('error', 'Failed to get search history')
+			'error': {
+				'code': 'VALIDATION_ERROR',
+				'message': 'Invalid limit parameter'
+			}
 		}, status=status.HTTP_400_BAD_REQUEST)
+	except Exception as e:
+		logger.error(f"Error in get_search_history: {e}")
+		return Response({
+			'success': False,
+			'error': {
+				'code': 'SERVER_ERROR',
+				'message': 'An error occurred while getting search history'
+			}
+		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
