@@ -81,8 +81,8 @@ class CreateFoodFromUSDASerializer(serializers.Serializer):
 class CustomFoodSerializer(serializers.Serializer):
 	"""Serializer for creating custom foods"""
 	name = serializers.CharField(max_length=200)
-	brand = serializers.CharField(max_length=100, required=False, allow_blank=True)
-	barcode = serializers.CharField(max_length=50, required=False, allow_blank=True)
+	brand = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+	barcode = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
 	serving_size = serializers.DecimalField(max_digits=8, decimal_places=2, default=100)
 	calories_per_100g = serializers.DecimalField(max_digits=8, decimal_places=2)
 	protein_per_100g = serializers.DecimalField(max_digits=8, decimal_places=2, default=0)
