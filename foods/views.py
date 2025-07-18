@@ -140,7 +140,7 @@ def search_foods(request):
 				'is_custom': food.is_custom,
 				'is_verified': food.is_verified,
 				'is_usda': False,
-				'category': {'name': food.category.name if food.category else 'Unknown'}
+				'category': {'name': 'Custom Food' if food.is_custom else 'Standard Food'}
 			})
 		
 		# Log the search
@@ -193,7 +193,7 @@ def get_food_details(request, food_id):
 	"""Get detailed information about a specific food"""
 	
 	try:
-		food = Food.objects.select_related('category', 'created_by').get(id=food_id)
+		food = Food.objects.select_related('created_by').get(id=food_id)
 		
 		food_data = {
 			'id': food.id,
@@ -201,9 +201,9 @@ def get_food_details(request, food_id):
 			'brand': food.brand,
 			'barcode': food.barcode,
 			'category': {
-				'id': food.category.id,
-				'name': food.category.name
-			} if food.category else None,
+				'id': 1 if food.is_custom else 2,
+				'name': 'Custom Food' if food.is_custom else 'Standard Food'
+			},
 			'serving_size': float(food.serving_size),
 			'calories_per_100g': float(food.calories_per_100g),
 			'protein_per_100g': float(food.protein_per_100g) if food.protein_per_100g else None,
@@ -736,7 +736,7 @@ def get_user_foods(request):
 		# Get user's custom foods
 		foods_queryset = Food.objects.filter(
 			created_by=request.user
-		).select_related('created_by', 'category').order_by('-created_at')
+		).select_related('created_by').order_by('-created_at')
 		
 		# Pagination
 		total_count = foods_queryset.count()
@@ -763,7 +763,7 @@ def get_user_foods(request):
 				'is_custom': True,
 				'is_verified': food.is_verified,
 				'is_usda': False,
-				'category': {'name': food.category.name if food.category else 'Unknown'},
+				'category': {'name': 'Custom Food'},
 				'created_at': food.created_at.isoformat()
 			})
 		
