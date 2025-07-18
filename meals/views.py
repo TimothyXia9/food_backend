@@ -393,3 +393,86 @@ def update_meal(request, meal_id):
 			'success': False,
 			'message': f'Failed to update meal: {str(e)}'
 		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_meal_statistics(request):
+	"""Get comprehensive meal statistics"""
+	
+	date_str = request.GET.get('date')
+	meal_type = request.GET.get('meal_type')
+	
+	if not date_str:
+		return Response({
+			'success': False,
+			'message': 'Date parameter is required'
+		}, status=status.HTTP_400_BAD_REQUEST)
+	
+	try:
+		date = datetime.strptime(date_str, '%Y-%m-%d').date()
+	except ValueError:
+		return Response({
+			'success': False,
+			'message': 'Invalid date format. Use YYYY-MM-DD'
+		}, status=status.HTTP_400_BAD_REQUEST)
+	
+	service = MealsService()
+	result = service.get_meal_statistics(request.user.id, date, meal_type)
+	
+	if result['success']:
+		return Response({
+			'success': True,
+			'data': result['statistics']
+		})
+	else:
+		return Response({
+			'success': False,
+			'message': result.get('error', 'Failed to get meal statistics')
+		}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_meal_comparison(request):
+	"""Get meal comparison between different dates or meal types"""
+	
+	try:
+		date1_str = request.GET.get('date1')
+		date2_str = request.GET.get('date2')
+		meal_type = request.GET.get('meal_type')
+		
+		if not date1_str or not date2_str:
+			return Response({
+				'success': False,
+				'message': 'Both date1 and date2 parameters are required'
+			}, status=status.HTTP_400_BAD_REQUEST)
+		
+		date1 = datetime.strptime(date1_str, '%Y-%m-%d').date()
+		date2 = datetime.strptime(date2_str, '%Y-%m-%d').date()
+		
+		service = MealsService()
+		result = service.get_meal_comparison(request.user.id, date1, date2, meal_type)
+		
+		if result['success']:
+			return Response({
+				'success': True,
+				'data': result['comparison']
+			})
+		else:
+			return Response({
+				'success': False,
+				'message': result.get('error', 'Failed to get meal comparison')
+			}, status=status.HTTP_400_BAD_REQUEST)
+			
+	except ValueError:
+		return Response({
+			'success': False,
+			'message': 'Invalid date format. Use YYYY-MM-DD'
+		}, status=status.HTTP_400_BAD_REQUEST)
+	except Exception as e:
+		logger.error(f"Failed to get meal comparison: {str(e)}")
+		return Response({
+			'success': False,
+			'message': f'Failed to get meal comparison: {str(e)}'
+		}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

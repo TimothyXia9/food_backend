@@ -22,4 +22,8 @@ urlpatterns = [
 	path('daily-summary/', views.get_daily_summary, name='get_daily_summary'),
 	path('nutrition-stats/', views.get_nutrition_stats, name='get_nutrition_stats'),
 	path('record-weight/', views.record_weight, name='record_weight'),
+	
+	# Meal statistics
+	path('statistics/', views.get_meal_statistics, name='get_meal_statistics'),
+	path('comparison/', views.get_meal_comparison, name='get_meal_comparison'),
 ]

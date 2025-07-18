@@ -560,3 +560,154 @@ class MealsService:
 				'success': False,
 				'error': str(e)
 			}
+	
+	def get_meal_statistics(self, user_id: int, date: datetime.date, meal_type: str = None) -> Dict[str, Any]:
+		"""Get comprehensive meal statistics for a specific date"""
+		
+		try:
+			# Build query for meals
+			query = Q(user_id=user_id, date=date)
+			if meal_type:
+				query &= Q(meal_type=meal_type)
+			
+			meals = Meal.objects.filter(query)
+			
+			# Calculate statistics
+			total_meals = meals.count()
+			total_calories = sum(meal.total_calories for meal in meals)
+			total_protein = sum(meal.total_protein for meal in meals)
+			total_fat = sum(meal.total_fat for meal in meals)
+			total_carbs = sum(meal.total_carbs for meal in meals)
+			
+			# Get meal breakdown by type
+			meal_breakdown = {}
+			for meal in meals:
+				meal_type_key = meal.meal_type
+				if meal_type_key not in meal_breakdown:
+					meal_breakdown[meal_type_key] = {
+						'count': 0,
+						'calories': 0,
+						'protein': 0,
+						'fat': 0,
+						'carbs': 0,
+						'foods': []
+					}
+				
+				meal_breakdown[meal_type_key]['count'] += 1
+				meal_breakdown[meal_type_key]['calories'] += float(meal.total_calories)
+				meal_breakdown[meal_type_key]['protein'] += float(meal.total_protein)
+				meal_breakdown[meal_type_key]['fat'] += float(meal.total_fat)
+				meal_breakdown[meal_type_key]['carbs'] += float(meal.total_carbs)
+				
+				# Get foods for this meal
+				for meal_food in meal.meal_foods.all():
+					meal_breakdown[meal_type_key]['foods'].append({
+						'name': meal_food.food.name,
+						'quantity': float(meal_food.quantity),
+						'calories': float(meal_food.calories)
+					})
+			
+			# Get most consumed foods
+			meal_foods = MealFood.objects.filter(meal__in=meals)
+			food_stats = {}
+			for meal_food in meal_foods:
+				food_name = meal_food.food.name
+				if food_name not in food_stats:
+					food_stats[food_name] = {
+						'total_quantity': 0,
+						'total_calories': 0,
+						'frequency': 0
+					}
+				
+				food_stats[food_name]['total_quantity'] += float(meal_food.quantity)
+				food_stats[food_name]['total_calories'] += float(meal_food.calories)
+				food_stats[food_name]['frequency'] += 1
+			
+			# Sort foods by calories
+			top_foods = sorted(food_stats.items(), key=lambda x: x[1]['total_calories'], reverse=True)[:10]
+			
+			return {
+				'success': True,
+				'statistics': {
+					'date': date.isoformat(),
+					'meal_type_filter': meal_type,
+					'summary': {
+						'total_meals': total_meals,
+						'total_calories': round(float(total_calories), 2),
+						'total_protein': round(float(total_protein), 2),
+						'total_fat': round(float(total_fat), 2),
+						'total_carbs': round(float(total_carbs), 2)
+					},
+					'meal_breakdown': meal_breakdown,
+					'top_foods': [
+						{
+							'name': food_name,
+							'total_quantity': round(stats['total_quantity'], 2),
+							'total_calories': round(stats['total_calories'], 2),
+							'frequency': stats['frequency']
+						}
+						for food_name, stats in top_foods
+					]
+				}
+			}
+			
+		except Exception as e:
+			logger.error(f"Failed to get meal statistics: {str(e)}")
+			return {
+				'success': False,
+				'error': str(e)
+			}
+	
+	def get_meal_comparison(self, user_id: int, date1: datetime.date, date2: datetime.date, meal_type: str = None) -> Dict[str, Any]:
+		"""Compare meals between two dates"""
+		
+		try:
+			# Get statistics for both dates
+			stats1 = self.get_meal_statistics(user_id, date1, meal_type)
+			stats2 = self.get_meal_statistics(user_id, date2, meal_type)
+			
+			if not stats1['success'] or not stats2['success']:
+				return {
+					'success': False,
+					'error': 'Failed to get statistics for comparison'
+				}
+			
+			# Calculate differences
+			summary1 = stats1['statistics']['summary']
+			summary2 = stats2['statistics']['summary']
+			
+			differences = {
+				'total_meals': summary2['total_meals'] - summary1['total_meals'],
+				'total_calories': round(summary2['total_calories'] - summary1['total_calories'], 2),
+				'total_protein': round(summary2['total_protein'] - summary1['total_protein'], 2),
+				'total_fat': round(summary2['total_fat'] - summary1['total_fat'], 2),
+				'total_carbs': round(summary2['total_carbs'] - summary1['total_carbs'], 2)
+			}
+			
+			# Calculate percentage changes
+			percent_changes = {}
+			for key in ['total_calories', 'total_protein', 'total_fat', 'total_carbs']:
+				if summary1[key] > 0:
+					percent_changes[key] = round((differences[key] / summary1[key]) * 100, 2)
+				else:
+					percent_changes[key] = 0
+			
+			return {
+				'success': True,
+				'comparison': {
+					'date1': date1.isoformat(),
+					'date2': date2.isoformat(),
+					'meal_type_filter': meal_type,
+					'date1_stats': stats1['statistics'],
+					'date2_stats': stats2['statistics'],
+					'differences': differences,
+					'percent_changes': percent_changes
+				}
+			}
+			
+		except Exception as e:
+			logger.error(f"Failed to get meal comparison: {str(e)}")
+			return {
+				'success': False,
+				'error': str(e)
+			}
