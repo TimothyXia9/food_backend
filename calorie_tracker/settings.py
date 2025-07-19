@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from token import OP
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -284,40 +285,41 @@ LOGGING = {
 			'propagate': False,
 		},
 		'django.db.backends': {
-			'handlers': ['console_debug', 'file_debug'],
-			'level': 'DEBUG',
+			# SQL logging: set ENABLE_SQL_DEBUG=true in .env to see all SQL queries
+			'handlers': ['file_debug'] + (['console_debug'] if config('ENABLE_SQL_DEBUG', default=False, cast=bool) else []),
+			'level': 'DEBUG' if config('ENABLE_SQL_DEBUG', default=False, cast=bool) else 'WARNING',
 			'propagate': False,
 		},
 		# App-specific loggers
 		'accounts': {
-			'handlers': ['console', 'file_api', 'file_debug'],
-			'level': 'DEBUG',
+			'handlers': ['console', 'file_api'],
+			'level': 'INFO',  # Reduced from DEBUG to INFO
 			'propagate': False,
 		},
 		'foods': {
-			'handlers': ['console', 'file_api', 'file_debug'],
-			'level': 'DEBUG',
+			'handlers': ['console', 'file_api'],
+			'level': 'INFO',  # Reduced from DEBUG to INFO
 			'propagate': False,
 		},
 		'meals': {
-			'handlers': ['console', 'file_api', 'file_debug'],
-			'level': 'DEBUG',
+			'handlers': ['console', 'file_api'],
+			'level': 'INFO',  # Reduced from DEBUG to INFO
 			'propagate': False,
 		},
 		'images': {
-			'handlers': ['console', 'file_api', 'file_debug'],
-			'level': 'DEBUG',
+			'handlers': ['console', 'file_api'],
+			'level': 'INFO',  # Reduced from DEBUG to INFO
 			'propagate': False,
 		},
-		# External service loggers
+		# External service loggers  
 		'calorie_tracker.openai_service': {
-			'handlers': ['console', 'file_openai', 'file_debug'],
-			'level': 'DEBUG',
+			'handlers': ['console', 'file_openai'],
+			'level': 'INFO',  # Reduced from DEBUG, keep important API calls
 			'propagate': False,
 		},
 		'foods.usda_service': {
-			'handlers': ['console', 'file_usda', 'file_debug'],
-			'level': 'DEBUG',
+			'handlers': ['console', 'file_usda'],
+			'level': 'INFO',  # Reduced from DEBUG
 			'propagate': False,
 		},
 		# API request logging

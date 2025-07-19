@@ -5,11 +5,15 @@ from .models import Meal, MealFood, DailySummary
 @admin.register(Meal)
 class MealAdmin(admin.ModelAdmin):
 	"""餐食管理界面"""
-	list_display = ('user', 'date', 'meal_type', 'name', 'get_total_calories', 'created_at')
+	list_display = ('id', 'user', 'date', 'meal_type', 'name', 'get_total_calories', 'get_food_count', 'created_at')
 	list_filter = ('meal_type', 'date', 'created_at')
-	search_fields = ('user__username', 'name', 'notes')
+	search_fields = ('user__username', 'name', 'notes', 'id')
 	readonly_fields = ('created_at', 'updated_at', 'get_total_calories', 'get_total_protein', 'get_total_fat', 'get_total_carbs')
 	date_hierarchy = 'date'
+	
+	# 启用删除功能用于调试
+	actions = ['delete_selected', 'delete_with_foods']
+	list_per_page = 20
 	
 	fieldsets = (
 		('基本信息', {
@@ -47,6 +51,24 @@ class MealAdmin(admin.ModelAdmin):
 		"""显示总碳水化合物"""
 		return f"{obj.total_carbs:.1f}g"
 	get_total_carbs.short_description = "总碳水化合物"
+	
+	def get_food_count(self, obj):
+		"""显示食物数量"""
+		return obj.meal_foods.count()
+	get_food_count.short_description = "食物数量"
+	
+	def delete_with_foods(self, request, queryset):
+		"""删除餐食及其所有食物 - 调试用"""
+		total_deleted = 0
+		for meal in queryset:
+			food_count = meal.meal_foods.count()
+			meal_name = f"{meal.name} ({meal.date})"
+			meal.delete()  # 会级联删除相关的MealFood记录
+			total_deleted += 1
+			self.message_user(request, f"已删除餐食: {meal_name}, 包含 {food_count} 个食物")
+		
+		self.message_user(request, f"总共删除了 {total_deleted} 个餐食")
+	delete_with_foods.short_description = "删除选中的餐食及其食物 (调试用)"
 	
 	def get_queryset(self, request):
 		"""优化查询性能"""
