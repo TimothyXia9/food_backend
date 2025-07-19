@@ -83,8 +83,16 @@ def add_food_to_meal(request, meal_id):
 	food_id = serializer.validated_data['food_id']
 	quantity = serializer.validated_data['quantity']
 	
+	# Prepare food data for USDA support
+	food_data = {
+		'food_id': food_id,
+		'fdc_id': request.data.get('fdc_id'),
+		'usda_fdc_id': request.data.get('usda_fdc_id'),
+		'name': request.data.get('name')
+	}
+	
 	service = MealsService()
-	result = service.add_food_to_meal(meal_id, request.user.id, food_id, quantity)
+	result = service.add_food_to_meal(meal_id, request.user.id, food_id, quantity, food_data)
 	
 	if result['success']:
 		return Response({

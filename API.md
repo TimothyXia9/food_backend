@@ -1,5 +1,13 @@
 # Django API Documentation
 
+## Changelog
+
+### 2025-07-19 - USDA Food Integration
+- **Enhanced Meal Creation**: Added support for automatic USDA food creation in meal endpoints
+- **New Parameters**: Added `fdc_id` and `name` parameters for USDA foods
+- **Automatic Processing**: System now automatically fetches USDA nutrition data and creates local food records
+- **Affected Endpoints**: `POST /meals/create/` and `POST /meals/{meal_id}/add-food/`
+
 ## Overview
 
 This document provides comprehensive documentation for the calorie tracking Django REST API. The API follows REST principles and returns JSON responses with a standardized format.
@@ -667,12 +675,48 @@ Create a new meal entry.
 	"notes": "string (optional)",
 	"foods": [
 		{
-			"food_id": "number (required)",
-			"quantity": "number (required)"
+			"food_id": "number (required, use -1 for USDA foods)",
+			"quantity": "number (required)",
+			"fdc_id": "number (optional, required when food_id is -1)",
+			"name": "string (optional, for USDA foods)"
 		}
 	]
 }
 ```
+
+**USDA Food Support:**
+
+The API now supports automatic creation of USDA foods when adding them to meals. For USDA foods:
+
+1. Set `food_id` to `-1` (placeholder for non-existent local food)
+2. Include `fdc_id` with the USDA FoodData Central ID
+3. Optionally include `name` as a fallback food name
+
+Example with USDA food:
+```json
+{
+	"date": "2024-01-15",
+	"meal_type": "breakfast",
+	"name": "Morning Meal",
+	"foods": [
+		{
+			"food_id": -1,
+			"quantity": 150,
+			"fdc_id": 171688,
+			"name": "Apples, raw"
+		},
+		{
+			"food_id": 5,
+			"quantity": 200
+		}
+	]
+}
+```
+
+The system will:
+- Check if a food with the given `fdc_id` already exists locally
+- If not, automatically fetch nutrition data from USDA and create a local Food record
+- Add the food to the meal with accurate nutritional calculations
 
 **Response (201 Created):**
 ```json
@@ -838,8 +882,28 @@ Add a food item to an existing meal.
 **Request Body:**
 ```json
 {
-	"food_id": "number (required)",
-	"quantity": "number (required)"
+	"food_id": "number (required, use -1 for USDA foods)",
+	"quantity": "number (required)",
+	"fdc_id": "number (optional, required when food_id is -1)",
+	"name": "string (optional, for USDA foods)"
+}
+```
+
+**USDA Food Support:**
+
+Similar to meal creation, this endpoint supports adding USDA foods. For USDA foods:
+
+1. Set `food_id` to `-1`
+2. Include `fdc_id` with the USDA FoodData Central ID
+3. Optionally include `name` as a fallback food name
+
+Example with USDA food:
+```json
+{
+	"food_id": -1,
+	"quantity": 100,
+	"fdc_id": 171688,
+	"name": "Apples, raw"
 }
 ```
 

@@ -74,13 +74,13 @@ class MealFood(models.Model):
 		"""Auto-calculate nutritional values based on quantity"""
 		if self.food_id:
 			multiplier = self.quantity / 100  # Convert to per 100g ratio
-			self.calories = self.food.calories_per_100g * multiplier
+			self.calories = Decimal(str(self.food.calories_per_100g)) * multiplier
 			if self.food.protein_per_100g:
-				self.protein = self.food.protein_per_100g * multiplier
+				self.protein = Decimal(str(self.food.protein_per_100g)) * multiplier
 			if self.food.fat_per_100g:
-				self.fat = self.food.fat_per_100g * multiplier
+				self.fat = Decimal(str(self.food.fat_per_100g)) * multiplier
 			if self.food.carbs_per_100g:
-				self.carbs = self.food.carbs_per_100g * multiplier
+				self.carbs = Decimal(str(self.food.carbs_per_100g)) * multiplier
 		super().save(*args, **kwargs)
 
 
@@ -119,7 +119,7 @@ class DailySummary(models.Model):
 		# Calculate fiber from meal foods
 		meal_foods = MealFood.objects.filter(meal__in=meals)
 		self.total_fiber = sum(
-			(mf.food.fiber_per_100g or 0) * (mf.quantity / 100)
+			Decimal(str(mf.food.fiber_per_100g or 0)) * (mf.quantity / 100)
 			for mf in meal_foods
 		)
 		

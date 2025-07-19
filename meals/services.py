@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from .models import Meal, MealFood, DailySummary
 from foods.models import Food
+from foods.usda_service import get_usda_service
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,15 @@ class MealsService:
 				foods_added = []
 				if meal_data.get('foods'):
 					for food_item in meal_data['foods']:
-						food = Food.objects.get(id=food_item['food_id'])
+						# Try to get existing food first
+						try:
+							food = Food.objects.get(id=food_item['food_id'])
+						except Food.DoesNotExist:
+							# Check if this is a USDA food that needs to be created
+							food = self._create_usda_food_if_needed(food_item, user_id)
+							if not food:
+								logger.error(f"Food with ID {food_item['food_id']} not found and could not be created from USDA")
+								continue
 						
 						meal_food = MealFood.objects.create(
 							meal=meal,
@@ -126,14 +135,31 @@ class MealsService:
 				'error': str(e)
 			}
 	
-	def add_food_to_meal(self, meal_id: int, user_id: int, food_id: int, quantity: Decimal) -> Dict[str, Any]:
+	def add_food_to_meal(self, meal_id: int, user_id: int, food_id: int, quantity: Decimal, food_data: Dict[str, Any] = None) -> Dict[str, Any]:
 		"""Add a food item to an existing meal"""
 		
 		try:
 			with transaction.atomic():
-				# Get meal and food
+				# Get meal
 				meal = Meal.objects.get(id=meal_id, user_id=user_id)
-				food = Food.objects.get(id=food_id)
+				
+				# Try to get existing food first
+				try:
+					food = Food.objects.get(id=food_id)
+				except Food.DoesNotExist:
+					# Check if this is a USDA food that needs to be created
+					if food_data:
+						food = self._create_usda_food_if_needed(food_data, user_id)
+						if not food:
+							return {
+								'success': False,
+								'error': f'Food with ID {food_id} not found and could not be created from USDA data'
+							}
+					else:
+						return {
+							'success': False,
+							'error': f'Food with ID {food_id} not found'
+						}
 				
 				# Create meal food
 				meal_food = MealFood.objects.create(
@@ -711,3 +737,67 @@ class MealsService:
 				'success': False,
 				'error': str(e)
 			}
+	
+	def _create_usda_food_if_needed(self, food_item: Dict[str, Any], user_id: int) -> Optional[Food]:
+		"""
+		Create a Food record from USDA data if the food_item contains USDA information.
+		This allows USDA foods to be automatically added to the local database when 
+		they're added to meal baskets.
+		
+		Args:
+			food_item: Dictionary containing food information including potential USDA data
+			user_id: ID of the user creating the meal
+			
+		Returns:
+			Food instance if created successfully, None otherwise
+		"""
+		try:
+			# Check if this food_item contains USDA information
+			fdc_id = food_item.get('fdc_id') or food_item.get('usda_fdc_id')
+			if not fdc_id:
+				logger.debug(f"No USDA FDC ID found in food_item: {food_item}")
+				return None
+			
+			# Check if we already have this USDA food in our database
+			existing_food = Food.objects.filter(usda_fdc_id=str(fdc_id)).first()
+			if existing_food:
+				logger.info(f"Found existing USDA food with FDC ID {fdc_id}: {existing_food.name}")
+				return existing_food
+			
+			# Get USDA service and fetch nutrition data
+			usda_service = get_usda_service()
+			if not usda_service.is_available():
+				logger.warning("USDA service not available for creating food")
+				return None
+			
+			# Get detailed nutrition data from USDA
+			result = usda_service.get_food_details(int(fdc_id))
+			if not result['success']:
+				logger.error(f"Failed to get USDA nutrition data for FDC ID {fdc_id}: {result.get('error')}")
+				return None
+			
+			nutrition_data = result['nutrition_data']
+			nutrients = nutrition_data.get('nutrients', {})
+			
+			# Create the food record
+			food = Food.objects.create(
+				name=nutrition_data.get('description', food_item.get('name', f'USDA Food {fdc_id}')),
+				serving_size=100,  # USDA data is per 100g
+				calories_per_100g=nutrients.get('calories', {}).get('amount', 0),
+				protein_per_100g=nutrients.get('protein', {}).get('amount', 0),
+				fat_per_100g=nutrients.get('fat', {}).get('amount', 0),
+				carbs_per_100g=nutrients.get('carbs', {}).get('amount', 0),
+				fiber_per_100g=nutrients.get('fiber', {}).get('amount', 0),
+				sugar_per_100g=nutrients.get('sugar', {}).get('amount', 0),
+				sodium_per_100g=nutrients.get('sodium', {}).get('amount', 0),
+				is_verified=True,  # USDA data is verified
+				usda_fdc_id=str(fdc_id),
+				created_by_id=user_id
+			)
+			
+			logger.info(f"Successfully created USDA food: {food.name} (FDC ID: {fdc_id})")
+			return food
+			
+		except Exception as e:
+			logger.error(f"Failed to create USDA food from food_item {food_item}: {str(e)}")
+			return None

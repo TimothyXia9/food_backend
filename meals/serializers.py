@@ -64,11 +64,16 @@ class CreateMealSerializer(serializers.Serializer):
 			if 'quantity' not in food_item:
 				raise serializers.ValidationError("quantity is required for each food item")
 			
-			# Validate food exists
-			try:
-				Food.objects.get(id=food_item['food_id'])
-			except Food.DoesNotExist:
-				raise serializers.ValidationError(f"Food with id {food_item['food_id']} not found")
+			# Validate food exists, unless it's a USDA food (indicated by fdc_id)
+			if food_item['food_id'] != -1:  # -1 is placeholder for USDA foods
+				try:
+					Food.objects.get(id=food_item['food_id'])
+				except Food.DoesNotExist:
+					raise serializers.ValidationError(f"Food with id {food_item['food_id']} not found")
+			else:
+				# For USDA foods (food_id = -1), validate that fdc_id is provided
+				if 'fdc_id' not in food_item:
+					raise serializers.ValidationError("fdc_id is required for USDA foods (when food_id is -1)")
 		
 		return value
 
