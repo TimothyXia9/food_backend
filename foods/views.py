@@ -691,24 +691,37 @@ def delete_food(request, food_id):
 				}
 			}, status=status.HTTP_404_NOT_FOUND)
 		
-		# Check if food is used in any meals
+		# Check if food is used in any meals and remove from them
 		from meals.models import MealFood
-		if MealFood.objects.filter(food=food).exists():
-			return Response({
-				'success': False,
-				'error': {
-					'code': 'FOOD_IN_USE',
-					'message': 'Cannot delete food that is used in meals'
-				}
-			}, status=status.HTTP_400_BAD_REQUEST)
+		meal_foods = MealFood.objects.filter(food=food)
+		meal_count = 0
+		meal_foods_count = 0
+		
+		if meal_foods.exists():
+			# Get meal information for notification
+			meal_count = meal_foods.values('meal').distinct().count()
+			meal_foods_count = meal_foods.count()
+			
+			# Remove this food from all meals
+			meal_foods.delete()
 		
 		food_name = food.name
 		food.delete()
 		
+		# Create response message based on whether food was removed from meals
+		if meal_count > 0:
+			message = f'Food "{food_name}" deleted successfully. It was removed from {meal_foods_count} meal entries across {meal_count} different meals.'
+		else:
+			message = f'Food "{food_name}" deleted successfully'
+		
 		return Response({
 			'success': True,
-			'data': None,
-			'message': f'Food "{food_name}" deleted successfully'
+			'data': {
+				'removed_from_meals': meal_count > 0,
+				'meal_count': meal_count,
+				'meal_foods_count': meal_foods_count
+			},
+			'message': message
 		}, status=status.HTTP_200_OK)
 		
 	except Exception as e:
