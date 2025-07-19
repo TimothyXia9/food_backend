@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class OpenAIService:
     """Centralized OpenAI API service with key rotation and error handling"""
 
-    def __init__(self, api_keys: List[str] = None):
+    def __init__(self, api_keys: Optional[List[str]] = None):
         """
         Initialize OpenAI service
 
@@ -43,15 +43,16 @@ class OpenAIService:
         # Try to load multiple keys first
         api_keys_str = config("OPENAI_API_KEYS", default="[]", cast=str)
         try:
-            api_keys = json.loads(api_keys_str)
-            if api_keys and isinstance(api_keys, list):
-                return [str(key) for key in api_keys]
+            if api_keys_str and isinstance(api_keys_str, str):
+                api_keys = json.loads(api_keys_str)
+                if api_keys and isinstance(api_keys, list):
+                    return [str(key) for key in api_keys if isinstance(key, str)]
         except json.JSONDecodeError:
             pass
 
         # Fall back to single key
-        single_key = config("OPENAI_API_KEY", default=None, cast=str)
-        if single_key:
+        single_key = config("OPENAI_API_KEY", default=None)
+        if single_key and isinstance(single_key, str):
             return [single_key]
 
         return []
@@ -180,11 +181,11 @@ class OpenAIService:
         self,
         image_path: str,
         prompt: str,
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.1,
         max_tokens: int = 1000,
         max_retries: int = 3,
-        timeout: int = None,
+        timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Make a vision completion request with image
@@ -226,21 +227,21 @@ class OpenAIService:
 
         return await self.chat_completion(
             messages=messages,
-            model=model,
+            model=model or self.default_model,
             temperature=temperature,
             max_tokens=max_tokens,
             max_retries=max_retries,
-            timeout=timeout,
+            timeout=timeout or self.default_timeout,
         )
 
     async def function_calling_completion(
         self,
         messages: List[Dict[str, Any]],
         functions: List[Dict[str, Any]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.0,
         max_iterations: int = 5,
-        timeout: int = None,
+        timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Make a function calling completion with conversation management
@@ -264,9 +265,9 @@ class OpenAIService:
                 messages=conversation_history,
                 functions=functions,
                 function_call="auto",
-                model=model,
+                model=model or self.default_model,
                 temperature=temperature,
-                timeout=timeout,
+                timeout=timeout or self.default_timeout,
             )
 
             if not result["success"]:
@@ -320,10 +321,10 @@ class OpenAIService:
         function_name: str,
         function_result: Dict[str, Any],
         functions: List[Dict[str, Any]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.0,
         max_iterations: int = 5,
-        timeout: int = None,
+        timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Continue a function calling conversation after function execution
