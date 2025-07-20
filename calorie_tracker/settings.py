@@ -191,6 +191,10 @@ import json
 USDA_API_KEYS = json.loads(os.getenv("USDA_API_KEYS", "[]"))
 OPENAI_API_KEYS = json.loads(os.getenv("OPENAI_API_KEYS", "[]"))
 
+# Ensure logs directory exists
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOGS_DIR, exist_ok=True)
+
 # Logging Configuration
 LOGGING = {
 	'version': 1,
