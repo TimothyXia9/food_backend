@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from django.db.models import Q, Sum, Count
 from django.db import transaction
 from django.core.paginator import Paginator
+from django.utils import timezone
+import pytz
 from decimal import Decimal
 
 from .models import Meal, MealFood, DailySummary
@@ -19,6 +21,82 @@ logger = logging.getLogger(__name__)
 
 class MealsService:
 	"""Service for managing meals and nutrition tracking"""
+	
+	def _parse_timezone_filters(self, filters: Dict[str, Any]) -> Q:
+		"""
+		Parse timezone-aware datetime filters with fallback to legacy date filters.
+		All filtering is now based on UTC datetime comparisons against the 'date' field.
+		"""
+		query = Q()
+		
+		# Check if we have UTC datetime parameters (preferred)
+		start_datetime_utc = filters.get('start_datetime_utc')
+		end_datetime_utc = filters.get('end_datetime_utc')
+		
+		if start_datetime_utc or end_datetime_utc:
+			# Use UTC datetime filtering - compare against date field which is UTC
+			if start_datetime_utc:
+				query &= Q(date__gte=start_datetime_utc)
+			if end_datetime_utc:
+				query &= Q(date__lte=end_datetime_utc)
+			
+			logger.debug(f"Using UTC datetime filtering: {start_datetime_utc} to {end_datetime_utc}")
+			return query
+		
+		# Legacy date filtering: convert date strings to UTC datetime ranges
+		# Frontend should send UTC datetime strings, but we support legacy date format for compatibility
+		if filters.get('date'):
+			# Convert single date to UTC datetime range (00:00:00 to 23:59:59 UTC)
+			date_str = filters['date']
+			try:
+				from datetime import datetime
+				import pytz
+				start_utc = datetime.strptime(f"{date_str} 00:00:00", "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.UTC)
+				end_utc = datetime.strptime(f"{date_str} 23:59:59", "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.UTC)
+				query &= Q(date__gte=start_utc) & Q(date__lte=end_utc)
+				logger.info(f"Retrieved {Meal.objects.filter(query).count()} meals using legacy date filtering")
+			except ValueError as e:
+				logger.error(f"Invalid date format: {date_str} - {e}")
+		
+		if filters.get('start_date'):
+			try:
+				from datetime import datetime
+				import pytz
+				start_utc = datetime.strptime(f"{filters['start_date']} 00:00:00", "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.UTC)
+				query &= Q(date__gte=start_utc)
+			except ValueError as e:
+				logger.error(f"Invalid start_date format: {filters['start_date']} - {e}")
+		
+		if filters.get('end_date'):
+			try:
+				from datetime import datetime
+				import pytz
+				end_utc = datetime.strptime(f"{filters['end_date']} 23:59:59", "%Y-%m-%d %H:%M:%S").replace(tzinfo=pytz.UTC)
+				query &= Q(date__lte=end_utc)
+			except ValueError as e:
+				logger.error(f"Invalid end_date format: {filters['end_date']} - {e}")
+		
+		if filters.get('start_date') or filters.get('end_date') or filters.get('date'):
+			logger.debug(f"Using legacy date filtering: {filters.get('start_date')} to {filters.get('end_date')}")
+		
+		return query
+	
+	def _convert_timezone_to_utc(self, dt: datetime, user_timezone: str) -> datetime:
+		"""Convert a datetime from user timezone to UTC"""
+		try:
+			user_tz = pytz.timezone(user_timezone)
+			# If datetime is naive, assume it's in user timezone
+			if dt.tzinfo is None:
+				dt = user_tz.localize(dt)
+			else:
+				# Convert to user timezone first, then to UTC
+				dt = dt.astimezone(user_tz)
+			
+			return dt.astimezone(pytz.UTC)
+		except Exception as e:
+			logger.warning(f"Failed to convert timezone {user_timezone}: {str(e)}")
+			# Return as-is if conversion fails
+			return dt
 	
 	def create_meal(self, user_id: int, meal_data: Dict[str, Any]) -> Dict[str, Any]:
 		"""Create a new meal with foods"""
@@ -273,21 +351,27 @@ class MealsService:
 		"""Get user's meals with optional filtering"""
 		
 		try:
-			# Build query
+			# Build base query
 			query = Q(user_id=user_id)
 			
-			# Apply filters
-			if filters.get('date'):
-				query &= Q(date=filters['date'])
+			# Apply timezone-aware date/datetime filters
+			timezone_query = self._parse_timezone_filters(filters)
+			query &= timezone_query
+			
+			# Apply other filters
 			if filters.get('meal_type'):
 				query &= Q(meal_type=filters['meal_type'])
-			if filters.get('start_date'):
-				query &= Q(date__gte=filters['start_date'])
-			if filters.get('end_date'):
-				query &= Q(date__lte=filters['end_date'])
 			
-			# Get meals
-			meals = Meal.objects.filter(query).order_by('-date', 'meal_type')
+			# Get meals with proper ordering
+			# When using UTC datetime filtering, order by created_at
+			# When using legacy date filtering, order by date
+			has_datetime_filters = filters.get('start_datetime_utc') or filters.get('end_datetime_utc')
+			if has_datetime_filters:
+				meals = Meal.objects.filter(query).order_by('-created_at', 'meal_type')
+				logger.debug("Ordering by created_at (UTC datetime filtering)")
+			else:
+				meals = Meal.objects.filter(query).order_by('-date', 'meal_type')
+				logger.debug("Ordering by date (legacy date filtering)")
 			
 			# Paginate
 			page = filters.get('page', 1)
@@ -312,6 +396,10 @@ class MealsService:
 					'created_at': meal.created_at.isoformat()
 				})
 			
+			# Add debug information about filtering method used
+			filter_method = "UTC datetime" if has_datetime_filters else "legacy date"
+			logger.info(f"Retrieved {len(results)} meals using {filter_method} filtering")
+			
 			return {
 				'success': True,
 				'meals': results,
@@ -322,7 +410,8 @@ class MealsService:
 					'total_count': paginator.count,
 					'has_next': page_obj.has_next(),
 					'has_previous': page_obj.has_previous()
-				}
+				},
+				'filter_method': filter_method  # Debug info
 			}
 			
 		except Exception as e:
@@ -679,6 +768,121 @@ class MealsService:
 			
 		except Exception as e:
 			logger.error(f"Failed to get meal statistics: {str(e)}")
+			return {
+				'success': False,
+				'error': str(e)
+			}
+	
+	def get_meal_statistics_with_filters(self, user_id: int, filters: Dict[str, Any]) -> Dict[str, Any]:
+		"""Get comprehensive meal statistics with flexible filtering"""
+		
+		try:
+			# Build base query
+			query = Q(user_id=user_id)
+			
+			# Apply timezone-aware date/datetime filters
+			timezone_query = self._parse_timezone_filters(filters)
+			query &= timezone_query
+			
+			# Apply meal type filter
+			if filters.get('meal_type'):
+				query &= Q(meal_type=filters['meal_type'])
+			
+			meals = Meal.objects.filter(query)
+			
+			# Calculate statistics
+			total_meals = meals.count()
+			total_calories = sum(meal.total_calories for meal in meals)
+			total_protein = sum(meal.total_protein for meal in meals)
+			total_fat = sum(meal.total_fat for meal in meals)
+			total_carbs = sum(meal.total_carbs for meal in meals)
+			
+			# Get meal breakdown by type
+			meal_breakdown = {}
+			for meal in meals:
+				meal_type_key = meal.meal_type
+				if meal_type_key not in meal_breakdown:
+					meal_breakdown[meal_type_key] = {
+						'count': 0,
+						'calories': 0,
+						'protein': 0,
+						'fat': 0,
+						'carbs': 0,
+						'foods': []
+					}
+				
+				meal_breakdown[meal_type_key]['count'] += 1
+				meal_breakdown[meal_type_key]['calories'] += float(meal.total_calories)
+				meal_breakdown[meal_type_key]['protein'] += float(meal.total_protein)
+				meal_breakdown[meal_type_key]['fat'] += float(meal.total_fat)
+				meal_breakdown[meal_type_key]['carbs'] += float(meal.total_carbs)
+				
+				# Get foods for this meal
+				for meal_food in meal.meal_foods.all():
+					meal_breakdown[meal_type_key]['foods'].append({
+						'name': meal_food.food.name,
+						'quantity': float(meal_food.quantity),
+						'calories': float(meal_food.calories)
+					})
+			
+			# Get most consumed foods
+			meal_foods = MealFood.objects.filter(meal__in=meals)
+			food_stats = {}
+			for meal_food in meal_foods:
+				food_name = meal_food.food.name
+				if food_name not in food_stats:
+					food_stats[food_name] = {
+						'total_quantity': 0,
+						'total_calories': 0,
+						'frequency': 0
+					}
+				
+				food_stats[food_name]['total_quantity'] += float(meal_food.quantity)
+				food_stats[food_name]['total_calories'] += float(meal_food.calories)
+				food_stats[food_name]['frequency'] += 1
+			
+			# Sort foods by calories consumed
+			top_foods = sorted(
+				food_stats.items(),
+				key=lambda x: x[1]['total_calories'],
+				reverse=True
+			)[:10]
+			
+			# Format response
+			date_info = {}
+			if filters.get('date'):
+				date_info['date'] = filters['date'].isoformat() if hasattr(filters['date'], 'isoformat') else str(filters['date'])
+			elif filters.get('start_datetime_utc') and filters.get('end_datetime_utc'):
+				date_info['start_datetime_utc'] = filters['start_datetime_utc'].isoformat()
+				date_info['end_datetime_utc'] = filters['end_datetime_utc'].isoformat()
+			
+			return {
+				'success': True,
+				'statistics': {
+					**date_info,
+					'meal_type_filter': filters.get('meal_type'),
+					'summary': {
+						'total_meals': total_meals,
+						'total_calories': round(float(total_calories), 2),
+						'total_protein': round(float(total_protein), 2),
+						'total_fat': round(float(total_fat), 2),
+						'total_carbs': round(float(total_carbs), 2)
+					},
+					'meal_breakdown': meal_breakdown,
+					'top_foods': [
+						{
+							'name': food_name,
+							'total_quantity': round(stats['total_quantity'], 2),
+							'total_calories': round(stats['total_calories'], 2),
+							'frequency': stats['frequency']
+						}
+						for food_name, stats in top_foods
+					]
+				}
+			}
+			
+		except Exception as e:
+			logger.error(f"Failed to get meal statistics with filters: {str(e)}")
 			return {
 				'success': False,
 				'error': str(e)

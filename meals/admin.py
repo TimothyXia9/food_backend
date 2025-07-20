@@ -6,10 +6,10 @@ from .models import Meal, MealFood, DailySummary
 class MealAdmin(admin.ModelAdmin):
 	"""餐食管理界面"""
 	list_display = ('id', 'user', 'date', 'meal_type', 'name', 'get_total_calories', 'get_food_count', 'created_at')
-	list_filter = ('meal_type', 'date', 'created_at')
+	list_filter = ('meal_type', 'created_at')
 	search_fields = ('user__username', 'name', 'notes', 'id')
 	readonly_fields = ('created_at', 'updated_at', 'get_total_calories', 'get_total_protein', 'get_total_fat', 'get_total_carbs')
-	date_hierarchy = 'date'
+	date_hierarchy = 'created_at'
 	
 	# 启用删除功能用于调试
 	actions = ['delete_selected', 'delete_with_foods']

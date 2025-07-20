@@ -169,8 +169,26 @@ def get_user_meals(request):
 			'errors': serializer.errors
 		}, status=status.HTTP_400_BAD_REQUEST)
 	
+	# Extract timezone information from request headers
+	filters = {}
+	if serializer.validated_data:
+		filters.update(serializer.validated_data)
+	
+	# Add timezone information from headers if available
+	user_timezone_header = request.META.get('HTTP_X_USER_TIMEZONE')
+	user_timezone_offset_header = request.META.get('HTTP_X_USER_TIMEZONE_OFFSET')
+	
+	if user_timezone_header and not filters.get('user_timezone'):
+		filters['user_timezone'] = user_timezone_header
+	
+	if user_timezone_offset_header:
+		try:
+			filters['user_timezone_offset'] = int(user_timezone_offset_header)
+		except (ValueError, TypeError):
+			logger.warning(f"Invalid timezone offset in header: {user_timezone_offset_header}")
+	
 	service = MealsService()
-	result = service.get_user_meals(request.user.id, serializer.validated_data)
+	result = service.get_user_meals(request.user.id, filters)
 	
 	if result['success']:
 		return Response({
@@ -408,25 +426,45 @@ def update_meal(request, meal_id):
 def get_meal_statistics(request):
 	"""Get comprehensive meal statistics"""
 	
+	# 支持新的 UTC 时间范围参数或旧的日期参数
+	start_datetime_utc = request.GET.get('start_datetime_utc')
+	end_datetime_utc = request.GET.get('end_datetime_utc')
 	date_str = request.GET.get('date')
 	meal_type = request.GET.get('meal_type')
 	
-	if not date_str:
+	# 构建过滤参数
+	filters = {}
+	if start_datetime_utc and end_datetime_utc:
+		# 使用 UTC 时间范围
+		try:
+			filters['start_datetime_utc'] = datetime.fromisoformat(start_datetime_utc.replace('Z', '+00:00'))
+			filters['end_datetime_utc'] = datetime.fromisoformat(end_datetime_utc.replace('Z', '+00:00'))
+		except ValueError:
+			return Response({
+				'success': False,
+				'message': 'Invalid datetime format. Use ISO format like 2025-07-19T00:00:00Z'
+			}, status=status.HTTP_400_BAD_REQUEST)
+	elif date_str:
+		# 兼容旧的日期参数
+		try:
+			date = datetime.strptime(date_str, '%Y-%m-%d').date()
+			filters['date'] = date
+		except ValueError:
+			return Response({
+				'success': False,
+				'message': 'Invalid date format. Use YYYY-MM-DD'
+			}, status=status.HTTP_400_BAD_REQUEST)
+	else:
 		return Response({
 			'success': False,
-			'message': 'Date parameter is required'
+			'message': 'Date parameter or UTC datetime range is required'
 		}, status=status.HTTP_400_BAD_REQUEST)
 	
-	try:
-		date = datetime.strptime(date_str, '%Y-%m-%d').date()
-	except ValueError:
-		return Response({
-			'success': False,
-			'message': 'Invalid date format. Use YYYY-MM-DD'
-		}, status=status.HTTP_400_BAD_REQUEST)
+	if meal_type:
+		filters['meal_type'] = meal_type
 	
 	service = MealsService()
-	result = service.get_meal_statistics(request.user.id, date, meal_type)
+	result = service.get_meal_statistics_with_filters(request.user.id, filters)
 	
 	if result['success']:
 		return Response({

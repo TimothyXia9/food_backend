@@ -13,7 +13,7 @@ class Meal(models.Model):
 	]
 
 	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='meals')
-	date = models.DateField()
+	date = models.DateTimeField()  # 改为存储完整的UTC时间
 	meal_type = models.CharField(max_length=20, choices=MEAL_TYPE_CHOICES)
 	name = models.CharField(max_length=200, null=True, blank=True)
 	notes = models.TextField(null=True, blank=True)

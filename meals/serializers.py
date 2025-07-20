@@ -46,7 +46,7 @@ class MealSerializer(serializers.ModelSerializer):
 
 class CreateMealSerializer(serializers.Serializer):
 	"""Serializer for creating meals"""
-	date = serializers.DateField()
+	date = serializers.DateTimeField()
 	meal_type = serializers.ChoiceField(choices=Meal.MEAL_TYPE_CHOICES)
 	name = serializers.CharField(max_length=200, required=False, allow_blank=True)
 	notes = serializers.CharField(required=False, allow_blank=True)
@@ -112,12 +112,34 @@ class DailySummarySerializer(serializers.ModelSerializer):
 
 class MealListSerializer(serializers.Serializer):
 	"""Serializer for meal list requests"""
+	# Legacy date parameters (for backward compatibility)
 	date = serializers.DateField(required=False)
 	meal_type = serializers.ChoiceField(choices=Meal.MEAL_TYPE_CHOICES, required=False)
 	start_date = serializers.DateField(required=False)
 	end_date = serializers.DateField(required=False)
+	
+	# New timezone-aware UTC datetime parameters
+	start_datetime_utc = serializers.DateTimeField(required=False)
+	end_datetime_utc = serializers.DateTimeField(required=False)
+	user_timezone = serializers.CharField(max_length=50, required=False)
+	
+	# Pagination
 	page = serializers.IntegerField(default=1, min_value=1)
 	page_size = serializers.IntegerField(default=20, min_value=1, max_value=100)
+	
+	def validate(self, data):
+		"""Validate date/datetime parameters"""
+		# If using UTC datetime parameters, validate the range
+		if data.get('start_datetime_utc') and data.get('end_datetime_utc'):
+			if data['end_datetime_utc'] < data['start_datetime_utc']:
+				raise serializers.ValidationError("end_datetime_utc must be after start_datetime_utc")
+		
+		# If using legacy date parameters, validate the range
+		if data.get('start_date') and data.get('end_date'):
+			if data['end_date'] < data['start_date']:
+				raise serializers.ValidationError("end_date must be after start_date")
+		
+		return data
 
 
 class NutritionStatsSerializer(serializers.Serializer):
