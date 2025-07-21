@@ -14,6 +14,7 @@ urlpatterns = [
 	path('refresh', CustomTokenRefreshView.as_view(), name='token-refresh'),
 	path('logout', LogoutView.as_view(), name='user-logout'),
 	
-	# User profile endpoints
+	# User profile endpoints  
 	path('profile', UserProfileView.as_view(), name='user-profile'),
+	path('user/', UserProfileView.as_view(), name='current-user'),
 ]
