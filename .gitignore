@@ -32,3 +32,4 @@ migrations/
 *.jpg
 
 *.log
+.env.production
