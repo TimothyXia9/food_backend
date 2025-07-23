@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
-from token import OP
+import os
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,12 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-006vdf%35^m0_sd%+jom_%4%=yd%5=dy&(3d83!((l30#*gs0^"
+SECRET_KEY = config('SECRET_KEY', default="django-insecure-006vdf%35^m0_sd%+jom_%4%=yd%5=dy&(3d83!((l30#*gs0^")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+# Parse ALLOWED_HOSTS from environment variable
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda x: [h.strip() for h in x.split(',') if h.strip()])
 
 
 # Application definition
@@ -159,11 +160,19 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# CORS Settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# CORS Settings - Use environment variable for flexibility
+# Parse CORS_ALLOWED_ORIGINS from environment variable or use defaults
+default_cors_origins = "http://localhost:3000,http://127.0.0.1:3000"
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS', 
+    default=default_cors_origins,
+    cast=lambda x: [origin.strip().strip('"').strip("'") for origin in x.replace('[', '').replace(']', '').split(',') if origin.strip()]
+)
+
+# Also support FRONTEND_URL for single domain configuration
+frontend_url = config('FRONTEND_URL', default=None)
+if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -174,7 +183,6 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Media files for image uploads
-import os
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
