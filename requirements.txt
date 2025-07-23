@@ -12,3 +12,5 @@ pytz==2023.3
 requests==2.31.0
 setuptools==80.9.0
 sqlparse==0.5.3
+gunicorn==21.0.0
+whitenoise==6.4.0
