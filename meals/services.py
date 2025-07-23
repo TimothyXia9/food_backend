@@ -383,6 +383,20 @@ class MealsService:
 			# Format results
 			results = []
 			for meal in page_obj.object_list:
+				# Get foods for this meal
+				meal_foods = meal.meal_foods.select_related('food').all()
+				foods_data = []
+				for meal_food in meal_foods:
+					foods_data.append({
+						'id': meal_food.id,
+						'food': {
+							'id': meal_food.food.id,
+							'name': meal_food.food.name
+						},
+						'quantity': float(meal_food.quantity),
+						'calories': float(meal_food.calories)
+					})
+				
 				results.append({
 					'id': meal.id,
 					'date': meal.date.isoformat(),
@@ -392,7 +406,8 @@ class MealsService:
 					'total_protein': float(meal.total_protein),
 					'total_fat': float(meal.total_fat),
 					'total_carbs': float(meal.total_carbs),
-					'food_count': meal.meal_foods.count(),
+					'foods': foods_data,
+					'food_count': len(foods_data),
 					'created_at': meal.created_at.isoformat()
 				})
 			

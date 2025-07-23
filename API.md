@@ -837,11 +837,39 @@ Get meals for the authenticated user.
 {
 	"success": true,
 	"data": {
-		"meals": [...],
-		"total_count": 10,
-		"page": 1,
-		"page_size": 20,
-		"total_pages": 1
+		"meals": [
+			{
+				"id": 1,
+				"date": "2024-01-15T00:00:00Z",
+				"meal_type": "breakfast",
+				"name": "Morning Meal",
+				"total_calories": 520.0,
+				"total_protein": 15.2,
+				"total_fat": 8.5,
+				"total_carbs": 85.3,
+				"foods": [
+					{
+						"id": 1,
+						"food": {
+							"id": 1,
+							"name": "Apple"
+						},
+						"quantity": 150.0,
+						"calories": 78.0
+					}
+				],
+				"food_count": 1,
+				"created_at": "2024-01-15T08:30:00Z"
+			}
+		],
+		"pagination": {
+			"page": 1,
+			"page_size": 20,
+			"total_pages": 1,
+			"total_count": 10,
+			"has_next": false,
+			"has_previous": false
+		}
 	}
 }
 ```
