@@ -33,7 +33,7 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 # Parse ALLOWED_HOSTS from environment variable
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1",
+    default="localhost,127.0.0.1,*.railway.app",
     cast=lambda x: [h.strip() for h in x.split(",") if h.strip()],
 )
 
