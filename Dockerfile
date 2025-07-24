@@ -39,8 +39,8 @@ RUN adduser --disabled-password --gecos '' appuser \
 	&& chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
-EXPOSE 8000
+# Note: Railway will dynamically assign PORT, no need to expose specific port
+# EXPOSE directive is mainly for documentation in Railway context
 
 # Create entrypoint script for Railway PORT handling
 RUN echo '#!/bin/bash\n\
