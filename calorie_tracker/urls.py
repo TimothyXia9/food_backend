@@ -32,7 +32,6 @@ urlpatterns = [
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/users/", include("accounts.urls")),
     path("api/v1/foods/", include("foods.urls")),
-    # Temporarily comment out disabled apps
     path("api/v1/meals/", include("meals.urls")),
     path("api/v1/images/", include("images.urls")),
 ]
