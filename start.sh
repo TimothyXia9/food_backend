@@ -5,6 +5,10 @@ set -e
 
 echo "Starting Django application..."
 
+# Set default port if PORT is not set
+PORT=${PORT:-8000}
+echo "Using port: $PORT"
+
 # Run database migrations
 echo "Running database migrations..."
 python manage.py migrate --noinput
@@ -17,7 +21,7 @@ python manage.py collectstatic --noinput
 mkdir -p /tmp/media
 
 # Start the application
-echo "Starting Gunicorn server..."
+echo "Starting Gunicorn server on port $PORT..."
 exec gunicorn calorie_tracker.wsgi:application \
     --bind 0.0.0.0:$PORT \
     --workers 2 \

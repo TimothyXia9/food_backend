@@ -4,6 +4,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV RAILWAY_ENVIRONMENT=1
+ENV PORT=8000
 
 # Set work directory
 WORKDIR /app
@@ -30,9 +31,9 @@ RUN mkdir -p /tmp/media
 # Expose port
 EXPOSE 8000
 
-# Copy start script and make it executable
-COPY start.sh .
-RUN chmod +x start.sh
+# Copy entrypoint script and make it executable
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Run the application
-CMD ["./start.sh"]
+CMD ["./entrypoint.sh"]
