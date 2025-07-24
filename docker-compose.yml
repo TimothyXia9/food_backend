@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+    backend:
+        build: .
+        container_name: calorie_backend
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/app
+            - ./logs:/app/logs
+            - ./media:/app/media
+            - ./db:/app/db
+        environment:
+            - DEBUG=True
+            - PORT=8000
+            - DJANGO_SETTINGS_MODULE=calorie_tracker.settings
+        env_file:
+            - .env
+        depends_on:
+            - db
+        command: >
+            sh -c "python manage.py migrate &&
+                   python manage.py collectstatic --noinput &&
+                   python manage.py runserver 0.0.0.0:8000"
+
+    db:
+        image: postgres:15
+        container_name: calorie_postgres
+        environment:
+            POSTGRES_DB: calorie
+            POSTGRES_USER: calorie
+            POSTGRES_PASSWORD: calorie
+        ports:
+            - "5432:5432"
+        volumes:
+            - pg_data:/var/lib/postgresql/data
+
+volumes:
+    pg_data:
+    db:
