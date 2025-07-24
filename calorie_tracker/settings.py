@@ -22,13 +22,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default="django-insecure-006vdf%35^m0_sd%+jom_%4%=yd%5=dy&(3d83!((l30#*gs0^")
+SECRET_KEY = config(
+    "SECRET_KEY",
+    default="django-insecure-006vdf%35^m0_sd%+jom_%4%=yd%5=dy&(3d83!((l30#*gs0^",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config("DEBUG", default=True, cast=bool)
 
 # Parse ALLOWED_HOSTS from environment variable
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda x: [h.strip() for h in x.split(',') if h.strip()])
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1",
+    cast=lambda x: [h.strip() for h in x.split(",") if h.strip()],
+)
 
 
 # Application definition
@@ -132,12 +139,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Use WhiteNoise for static file serving in production
 if not DEBUG:
-    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -170,13 +177,17 @@ SIMPLE_JWT = {
 # Parse CORS_ALLOWED_ORIGINS from environment variable or use defaults
 default_cors_origins = "http://localhost:3000,http://127.0.0.1:3000"
 CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS', 
+    "CORS_ALLOWED_ORIGINS",
     default=default_cors_origins,
-    cast=lambda x: [origin.strip().strip('"').strip("'") for origin in x.replace('[', '').replace(']', '').split(',') if origin.strip()]
+    cast=lambda x: [
+        origin.strip().strip('"').strip("'")
+        for origin in x.replace("[", "").replace("]", "").split(",")
+        if origin.strip()
+    ],
 )
 
 # Also support FRONTEND_URL for single domain configuration
-frontend_url = config('FRONTEND_URL', default=None)
+frontend_url = config("FRONTEND_URL", default=None)
 if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(frontend_url)
 
@@ -206,171 +217,172 @@ USDA_API_KEYS = json.loads(os.getenv("USDA_API_KEYS", "[]"))
 OPENAI_API_KEYS = json.loads(os.getenv("OPENAI_API_KEYS", "[]"))
 
 # Ensure logs directory exists
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Logging Configuration
 # LOGGING = {
-	'version': 1,
-	'disable_existing_loggers': False,
-	'formatters': {
-		'verbose': {
-			'format': '[{levelname}] {asctime} {name} {process:d} {thread:d} - {message}',
-			'style': '{',
-		},
-		'simple': {
-			'format': '[{levelname}] {asctime} - {message}',
-			'style': '{',
-		},
-		'detailed': {
-			'format': '[{levelname}] {asctime} {name} {funcName}:{lineno} - {message}',
-			'style': '{',
-		},
-	},
-	'filters': {
-		'require_debug_false': {
-			'()': 'django.utils.log.RequireDebugFalse',
-		},
-		'require_debug_true': {
-			'()': 'django.utils.log.RequireDebugTrue',
-		},
-	},
-	'handlers': {
-		'console': {
-			'level': 'INFO',
-			'filters': ['require_debug_true'],
-			'class': 'logging.StreamHandler',
-			'formatter': 'simple'
-		},
-		'console_debug': {
-			'level': 'DEBUG',
-			'filters': ['require_debug_true'],
-			'class': 'logging.StreamHandler',
-			'formatter': 'detailed'
-		},
-		'file_general': {
-			'level': 'INFO',
-			'class': 'logging.handlers.RotatingFileHandler',
-			'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
-			'maxBytes': 1024*1024*10,  # 10 MB
-			'backupCount': 5,
-			'formatter': 'verbose',
-		},
-		'file_debug': {
-			'level': 'DEBUG',
-			'class': 'logging.handlers.RotatingFileHandler',
-			'filename': os.path.join(BASE_DIR, 'logs', 'debug.log'),
-			'maxBytes': 1024*1024*10,  # 10 MB
-			'backupCount': 3,
-			'formatter': 'detailed',
-		},
-		'file_error': {
-			'level': 'ERROR',
-			'class': 'logging.handlers.RotatingFileHandler',
-			'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
-			'maxBytes': 1024*1024*10,  # 10 MB
-			'backupCount': 5,
-			'formatter': 'verbose',
-		},
-		'file_api': {
-			'level': 'INFO',
-			'class': 'logging.handlers.RotatingFileHandler',
-			'filename': os.path.join(BASE_DIR, 'logs', 'api.log'),
-			'maxBytes': 1024*1024*10,  # 10 MB
-			'backupCount': 5,
-			'formatter': 'verbose',
-		},
-		'file_openai': {
-			'level': 'INFO',
-			'class': 'logging.handlers.RotatingFileHandler',
-			'filename': os.path.join(BASE_DIR, 'logs', 'openai.log'),
-			'maxBytes': 1024*1024*10,  # 10 MB
-			'backupCount': 3,
-			'formatter': 'detailed',
-		},
-		'file_usda': {
-			'level': 'INFO',
-			'class': 'logging.handlers.RotatingFileHandler',
-			'filename': os.path.join(BASE_DIR, 'logs', 'usda.log'),
-			'maxBytes': 1024*1024*5,  # 5 MB
-			'backupCount': 3,
-			'formatter': 'detailed',
-		},
-	},
-	'loggers': {
-		'django': {
-			'handlers': ['console', 'file_general'],
-			'level': 'INFO',
-			'propagate': False,
-		},
-		'django.request': {
-			'handlers': ['console', 'file_api', 'file_error'],
-			'level': 'WARNING',
-			'propagate': False,
-		},
-		'django.db.backends': {
-			# SQL logging: set ENABLE_SQL_DEBUG=true in .env to see all SQL queries
-			'handlers': ['file_debug'] + (['console_debug'] if config('ENABLE_SQL_DEBUG', default=False, cast=bool) else []),
-			'level': 'DEBUG' if config('ENABLE_SQL_DEBUG', default=False, cast=bool) else 'WARNING',
-			'propagate': False,
-		},
-		# App-specific loggers
-		'accounts': {
-			'handlers': ['console', 'file_api'],
-			'level': 'INFO',  # Reduced from DEBUG to INFO
-			'propagate': False,
-		},
-		'foods': {
-			'handlers': ['console', 'file_api'],
-			'level': 'INFO',  # Reduced from DEBUG to INFO
-			'propagate': False,
-		},
-		'meals': {
-			'handlers': ['console', 'file_api'],
-			'level': 'INFO',  # Reduced from DEBUG to INFO
-			'propagate': False,
-		},
-		'images': {
-			'handlers': ['console', 'file_api'],
-			'level': 'INFO',  # Reduced from DEBUG to INFO
-			'propagate': False,
-		},
-		# External service loggers  
-		'calorie_tracker.openai_service': {
-			'handlers': ['console', 'file_openai'],
-			'level': 'INFO',  # Reduced from DEBUG, keep important API calls
-			'propagate': False,
-		},
-		'foods.usda_service': {
-			'handlers': ['console', 'file_usda'],
-			'level': 'INFO',  # Reduced from DEBUG
-			'propagate': False,
-		},
-		# API request logging
-		'api_requests': {
-			'handlers': ['console', 'file_api'],
-			'level': 'INFO',
-			'propagate': False,
-		},
-		# Root logger for everything else
-		'': {
-			'handlers': ['console', 'file_general', 'file_error'],
-			'level': 'INFO',
-		},
-	},
-}
+# 	'version': 1,
+# 	'disable_existing_loggers': False,
+# 	'formatters': {
+# 		'verbose': {
+# 			'format': '[{levelname}] {asctime} {name} {process:d} {thread:d} - {message}',
+# 			'style': '{',
+# 		},
+# 		'simple': {
+# 			'format': '[{levelname}] {asctime} - {message}',
+# 			'style': '{',
+# 		},
+# 		'detailed': {
+# 			'format': '[{levelname}] {asctime} {name} {funcName}:{lineno} - {message}',
+# 			'style': '{',
+# 		},
+# 	},
+# 	'filters': {
+# 		'require_debug_false': {
+# 			'()': 'django.utils.log.RequireDebugFalse',
+# 		},
+# 		'require_debug_true': {
+# 			'()': 'django.utils.log.RequireDebugTrue',
+# 		},
+# 	},
+# 	'handlers': {
+# 		'console': {
+# 			'level': 'INFO',
+# 			'filters': ['require_debug_true'],
+# 			'class': 'logging.StreamHandler',
+# 			'formatter': 'simple'
+# 		},
+# 		'console_debug': {
+# 			'level': 'DEBUG',
+# 			'filters': ['require_debug_true'],
+# 			'class': 'logging.StreamHandler',
+# 			'formatter': 'detailed'
+# 		},
+# 		'file_general': {
+# 			'level': 'INFO',
+# 			'class': 'logging.handlers.RotatingFileHandler',
+# 			'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+# 			'maxBytes': 1024*1024*10,  # 10 MB
+# 			'backupCount': 5,
+# 			'formatter': 'verbose',
+# 		},
+# 		'file_debug': {
+# 			'level': 'DEBUG',
+# 			'class': 'logging.handlers.RotatingFileHandler',
+# 			'filename': os.path.join(BASE_DIR, 'logs', 'debug.log'),
+# 			'maxBytes': 1024*1024*10,  # 10 MB
+# 			'backupCount': 3,
+# 			'formatter': 'detailed',
+# 		},
+# 		'file_error': {
+# 			'level': 'ERROR',
+# 			'class': 'logging.handlers.RotatingFileHandler',
+# 			'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
+# 			'maxBytes': 1024*1024*10,  # 10 MB
+# 			'backupCount': 5,
+# 			'formatter': 'verbose',
+# 		},
+# 		'file_api': {
+# 			'level': 'INFO',
+# 			'class': 'logging.handlers.RotatingFileHandler',
+# 			'filename': os.path.join(BASE_DIR, 'logs', 'api.log'),
+# 			'maxBytes': 1024*1024*10,  # 10 MB
+# 			'backupCount': 5,
+# 			'formatter': 'verbose',
+# 		},
+# 		'file_openai': {
+# 			'level': 'INFO',
+# 			'class': 'logging.handlers.RotatingFileHandler',
+# 			'filename': os.path.join(BASE_DIR, 'logs', 'openai.log'),
+# 			'maxBytes': 1024*1024*10,  # 10 MB
+# 			'backupCount': 3,
+# 			'formatter': 'detailed',
+# 		},
+# 		'file_usda': {
+# 			'level': 'INFO',
+# 			'class': 'logging.handlers.RotatingFileHandler',
+# 			'filename': os.path.join(BASE_DIR, 'logs', 'usda.log'),
+# 			'maxBytes': 1024*1024*5,  # 5 MB
+# 			'backupCount': 3,
+# 			'formatter': 'detailed',
+# 		},
+# 	},
+# 	'loggers': {
+# 		'django': {
+# 			'handlers': ['console', 'file_general'],
+# 			'level': 'INFO',
+# 			'propagate': False,
+# 		},
+# 		'django.request': {
+# 			'handlers': ['console', 'file_api', 'file_error'],
+# 			'level': 'WARNING',
+# 			'propagate': False,
+# 		},
+# 		'django.db.backends': {
+# 			# SQL logging: set ENABLE_SQL_DEBUG=true in .env to see all SQL queries
+# 			'handlers': ['file_debug'] + (['console_debug'] if config('ENABLE_SQL_DEBUG', default=False, cast=bool) else []),
+# 			'level': 'DEBUG' if config('ENABLE_SQL_DEBUG', default=False, cast=bool) else 'WARNING',
+# 			'propagate': False,
+# 		},
+# 		# App-specific loggers
+# 		'accounts': {
+# 			'handlers': ['console', 'file_api'],
+# 			'level': 'INFO',  # Reduced from DEBUG to INFO
+# 			'propagate': False,
+# 		},
+# 		'foods': {
+# 			'handlers': ['console', 'file_api'],
+# 			'level': 'INFO',  # Reduced from DEBUG to INFO
+# 			'propagate': False,
+# 		},
+# 		'meals': {
+# 			'handlers': ['console', 'file_api'],
+# 			'level': 'INFO',  # Reduced from DEBUG to INFO
+# 			'propagate': False,
+# 		},
+# 		'images': {
+# 			'handlers': ['console', 'file_api'],
+# 			'level': 'INFO',  # Reduced from DEBUG to INFO
+# 			'propagate': False,
+# 		},
+# 		# External service loggers
+# 		'calorie_tracker.openai_service': {
+# 			'handlers': ['console', 'file_openai'],
+# 			'level': 'INFO',  # Reduced from DEBUG, keep important API calls
+# 			'propagate': False,
+# 		},
+# 		'foods.usda_service': {
+# 			'handlers': ['console', 'file_usda'],
+# 			'level': 'INFO',  # Reduced from DEBUG
+# 			'propagate': False,
+# 		},
+# 		# API request logging
+# 		'api_requests': {
+# 			'handlers': ['console', 'file_api'],
+# 			'level': 'INFO',
+# 			'propagate': False,
+# 		},
+# 		# Root logger for everything else
+# 		'': {
+# 			'handlers': ['console', 'file_general', 'file_error'],
+# 			'level': 'INFO',
+# 		},
+# 	},
+# }
+
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'level': 'INFO',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
     },
 }
