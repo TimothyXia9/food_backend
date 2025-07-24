@@ -38,8 +38,11 @@ RUN python manage.py collectstatic --noinput || echo "Static collection skipped"
 RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
-# Set default port if PORT is not set\n\
-export PORT=${PORT:-8000}\n\
+# Use Railway PORT or default to 8000\n\
+if [ -z "$PORT" ]; then\n\
+    PORT=8000\n\
+fi\n\
+\n\
 echo "Starting server on port: $PORT"\n\
 \n\
 # Run migrations\n\
@@ -50,7 +53,7 @@ python manage.py migrate --noinput\n\
 echo "Collecting static files..."\n\
 python manage.py collectstatic --noinput\n\
 \n\
-# Start gunicorn with dynamic port\n\
+# Start gunicorn with the port\n\
 echo "Starting gunicorn on 0.0.0.0:$PORT"\n\
 exec gunicorn calorie_tracker.wsgi:application \\\n\
     --bind "0.0.0.0:$PORT" \\\n\
@@ -71,8 +74,7 @@ RUN adduser --disabled-password --gecos '' appuser \
 # Switch to non-root user
 USER appuser
 
-# Expose port (mainly for documentation, Railway ignores this)
-EXPOSE 8000
+# Note: Railway handles port exposure automatically
 
 # Run the application using entrypoint script
 CMD ["/app/entrypoint.sh"]
