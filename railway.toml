@@ -1,5 +1,5 @@
 [build]
-builder = "NIXPACKS"
+builder = "docker"
 
 [deploy]
 startCommand = "bash start.sh"
