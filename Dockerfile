@@ -11,13 +11,13 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends \
-		build-essential \
-		libpq-dev \
-		libffi-dev \
-		libssl-dev \
-		curl \
-	&& rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libffi-dev \
+        libssl-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt .
@@ -31,40 +31,48 @@ COPY . .
 # Create directories for logs and media
 RUN mkdir -p logs media static
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
+# Collect static files (if needed at build time)
+RUN python manage.py collectstatic --noinput || echo "Static collection skipped"
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser \
-	&& chown -R appuser:appuser /app
-USER appuser
-
-# Note: Railway will dynamically assign PORT, no need to expose specific port
-# EXPOSE directive is mainly for documentation in Railway context
-
-# Create entrypoint script for Railway PORT handling
+# Create entrypoint script BEFORE creating user
 RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
 # Set default port if PORT is not set\n\
-PORT=${PORT:-8000}\n\
+export PORT=${PORT:-8000}\n\
 echo "Starting server on port: $PORT"\n\
 \n\
 # Run migrations\n\
+echo "Running migrations..."\n\
 python manage.py migrate --noinput\n\
 \n\
-# Collect static files\n\
+# Collect static files at runtime\n\
+echo "Collecting static files..."\n\
 python manage.py collectstatic --noinput\n\
 \n\
 # Start gunicorn with dynamic port\n\
+echo "Starting gunicorn on 0.0.0.0:$PORT"\n\
 exec gunicorn calorie_tracker.wsgi:application \\\n\
-    --bind "0.0.0.0:${PORT}" \\\n\
+    --bind "0.0.0.0:$PORT" \\\n\
     --workers 2 \\\n\
     --timeout 120 \\\n\
-    --log-level info\n\
-' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+    --log-level info \\\n\
+    --access-logfile - \\\n\
+    --error-logfile -\n\
+' > /app/entrypoint.sh
 
-# Health check with dynamic port
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-	CMD curl -f http://localhost:${PORT:-8000}/api/v1/health/ || exit 1
+# Make script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Create non-root user for security
+RUN adduser --disabled-password --gecos '' appuser \
+    && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port (mainly for documentation, Railway ignores this)
+EXPOSE 8000
 
 # Run the application using entrypoint script
 CMD ["/app/entrypoint.sh"]
