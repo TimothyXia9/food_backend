@@ -11,6 +11,12 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'calorie_tracker.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "calorie_tracker.settings")
 
 application = get_wsgi_application()
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore", category=UserWarning, module="rest_framework_simplejwt"
+)
