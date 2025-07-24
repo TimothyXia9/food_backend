@@ -109,64 +109,73 @@ import dj_database_url
 # Database configuration with Railway PostgreSQL troubleshooting
 def get_database_config():
     """Get database configuration with fallback options"""
+    import logging
+    logger = logging.getLogger('startup')
     
     # Print environment variables for debugging
-    print("=== DATABASE DEBUG INFO ===")
+    logger.info("=== DATABASE DEBUG INFO ===")
     database_env_vars = {k: v for k, v in os.environ.items() if 'DATABASE' in k or 'PG' in k}
     for key, value in database_env_vars.items():
         if 'PASSWORD' in key:
-            print(f"{key}: [HIDDEN]")
+            logger.info(f"{key}: [HIDDEN]")
         else:
-            print(f"{key}: {value}")
-    print("========================")
+            logger.info(f"{key}: {value}")
+    logger.info("========================")
     
     if "DATABASE_URL" in os.environ:
         # Production: Use PostgreSQL via DATABASE_URL (Railway/Heroku)
         database_url = os.environ.get("DATABASE_URL")
         if database_url:
-            print(f"Using DATABASE_URL: {database_url.split('@')[0]}@[HOST_HIDDEN]")
-            parsed_db = dj_database_url.parse(database_url)
-            
-            # Add connection options for Railway
-            parsed_db.update({
-                'OPTIONS': {
-                    'connect_timeout': 60,
-                    'keepalives_idle': 600,
-                    'keepalives_interval': 30,
-                    'keepalives_count': 3,
-                },
-                'CONN_MAX_AGE': 60,
-                'CONN_HEALTH_CHECKS': True,
-            })
-            
-            return {"default": parsed_db}
+            logger.info(f"Using DATABASE_URL: {database_url.split('@')[0]}@[HOST_HIDDEN]")
+            try:
+                parsed_db = dj_database_url.parse(database_url)
+                logger.info(f"Parsed database config - Engine: {parsed_db.get('ENGINE')}, Name: {parsed_db.get('NAME')}, Host: {parsed_db.get('HOST')}, Port: {parsed_db.get('PORT')}")
+                
+                # Add connection options for Railway
+                parsed_db.update({
+                    'OPTIONS': {
+                        'connect_timeout': 60,
+                        'keepalives_idle': 600,
+                        'keepalives_interval': 30,
+                        'keepalives_count': 3,
+                    },
+                    'CONN_MAX_AGE': 60,
+                    'CONN_HEALTH_CHECKS': True,
+                })
+                
+                logger.info("Database configuration loaded successfully with Railway PostgreSQL options")
+                return {"default": parsed_db}
+            except Exception as e:
+                logger.error(f"Failed to parse DATABASE_URL: {e}")
+                raise
         else:
+            logger.error("DATABASE_URL environment variable is set but empty")
             raise ValueError("DATABASE_URL environment variable is set but empty")
     
     elif "RAILWAY_ENVIRONMENT" in os.environ:
         # Railway environment without DATABASE_URL (fallback to individual variables)
-        print("Using individual PostgreSQL environment variables")
-        return {
-            "default": {
-                "ENGINE": "django.db.backends.postgresql",
-                "NAME": os.environ.get("PGDATABASE", "railway"),
-                "USER": os.environ.get("PGUSER", "postgres"),
-                "PASSWORD": os.environ.get("PGPASSWORD", ""),
-                "HOST": os.environ.get("PGHOST", "localhost"),
-                "PORT": os.environ.get("PGPORT", "5432"),
-                "OPTIONS": {
-                    "connect_timeout": 60,
-                    "keepalives_idle": 600,
-                    "keepalives_interval": 30,
-                    "keepalives_count": 3,
-                },
-                "CONN_MAX_AGE": 60,
-                "CONN_HEALTH_CHECKS": True,
-            }
+        logger.info("Using individual PostgreSQL environment variables")
+        db_config = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("PGDATABASE", "railway"),
+            "USER": os.environ.get("PGUSER", "postgres"),
+            "PASSWORD": os.environ.get("PGPASSWORD", ""),
+            "HOST": os.environ.get("PGHOST", "localhost"),
+            "PORT": os.environ.get("PGPORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": 60,
+                "keepalives_idle": 600,
+                "keepalives_interval": 30,
+                "keepalives_count": 3,
+            },
+            "CONN_MAX_AGE": 60,
+            "CONN_HEALTH_CHECKS": True,
         }
+        logger.info(f"PostgreSQL config - Host: {db_config['HOST']}, Port: {db_config['PORT']}, DB: {db_config['NAME']}, User: {db_config['USER']}")
+        return {"default": db_config}
     else:
         # Development: Use SQLite
-        print("Using SQLite for development")
+        logger.info("Using SQLite for development")
         return {
             "default": {
                 "ENGINE": "django.db.backends.sqlite3",
@@ -175,6 +184,11 @@ def get_database_config():
         }
 
 DATABASES = get_database_config()
+
+# Add startup completion logging
+import logging
+startup_logger = logging.getLogger('startup')
+startup_logger.info("Django settings configuration completed successfully")
 
 
 # Password validation
@@ -445,16 +459,103 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 
 
 LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "INFO",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
+	"version": 1,
+	"disable_existing_loggers": False,
+	"formatters": {
+		"verbose": {
+			"format": "[{levelname}] {asctime} {name} {process:d} {thread:d} - {message}",
+			"style": "{",
+		},
+		"detailed": {
+			"format": "[{levelname}] {asctime} {name} {funcName}:{lineno} - {message}",
+			"style": "{",
+		},
+	},
+	"handlers": {
+		"console": {
+			"level": "DEBUG",
+			"class": "logging.StreamHandler",
+			"formatter": "verbose"
+		},
+	},
+	"loggers": {
+		"django": {
+			"handlers": ["console"],
+			"level": "INFO",
+			"propagate": False,
+		},
+		"django.request": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		"django.db.backends": {
+			"handlers": ["console"],
+			"level": "INFO",
+			"propagate": False,
+		},
+		"django.server": {
+			"handlers": ["console"],
+			"level": "INFO",
+			"propagate": False,
+		},
+		"gunicorn": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		"gunicorn.error": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		"gunicorn.access": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		# App-specific loggers
+		"accounts": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		"foods": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		"meals": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		"images": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		# External service loggers
+		"calorie_tracker.openai_service": {
+			"handlers": ["console"],
+			"level": "INFO",
+			"propagate": False,
+		},
+		"foods.usda_service": {
+			"handlers": ["console"],
+			"level": "INFO",
+			"propagate": False,
+		},
+		# Startup logging
+		"startup": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+			"propagate": False,
+		},
+		# Root logger for everything else
+		"": {
+			"handlers": ["console"],
+			"level": "DEBUG",
+		},
+	},
 }

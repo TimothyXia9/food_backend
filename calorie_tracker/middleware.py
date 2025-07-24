@@ -26,6 +26,9 @@ class RequestLoggingMiddleware(MiddlewareMixin):
 		if request.path.startswith('/static/') or request.path.startswith('/admin/'):
 			return None
 		
+		# Enhanced logging for Railway debugging
+		api_logger.info(f"[REQUEST] {request.method} {request.path} from {request.META.get('REMOTE_ADDR', 'unknown')}")
+		
 		# Log request details
 		log_data = {
 			'method': request.method,
