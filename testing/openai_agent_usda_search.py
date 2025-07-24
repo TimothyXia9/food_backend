@@ -13,7 +13,7 @@ from decouple import config
 from dotenv import load_dotenv
 
 # Import existing services
-from test_usda_nutrition import USDANutritionAPI, format_nutrition_info
+from usda_nutrition import USDANutritionAPI, format_nutrition_info
 
 # Load environment variables
 load_dotenv()

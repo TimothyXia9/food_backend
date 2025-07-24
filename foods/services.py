@@ -11,11 +11,8 @@ from decimal import Decimal
 
 from .models import Food, FoodAlias, FoodSearchLog
 
-# Import USDA service from testing
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent / 'testing'))
-from test_usda_nutrition import USDANutritionAPI, format_nutrition_info
+# Import USDA service
+from .usda_nutrition import USDANutritionAPI, format_nutrition_info
 
 logger = logging.getLogger(__name__)
 

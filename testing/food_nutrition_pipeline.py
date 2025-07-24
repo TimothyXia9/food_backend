@@ -14,7 +14,7 @@ import time
 
 # Import our existing services
 from async_openai_service import AsyncOpenAIService
-from test_usda_nutrition import USDANutritionAPI, format_nutrition_info
+from usda_nutrition import USDANutritionAPI, format_nutrition_info
 
 
 class FoodNutritionPipeline:
