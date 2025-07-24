@@ -33,3 +33,5 @@ __pycache__/
 
 *.log
 .env.production
+
+/staticfiles
