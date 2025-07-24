@@ -1,2 +1,2 @@
-web: gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT --log-level debug --access-logfile - --error-logfile -
-release: python manage.py migrate --noinput && python manage.py collectstatic --noinput
+web: python manage.py migrate --noinput && gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT --log-level info --access-logfile - --error-logfile -
+release: python manage.py collectstatic --noinput

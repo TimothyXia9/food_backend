@@ -97,17 +97,32 @@ WSGI_APPLICATION = "calorie_tracker.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 
-import tempfile
+import dj_database_url
 
-# 如果是生产环境，使用临时目录
-if "RAILWAY_ENVIRONMENT" in os.environ:
+# Database configuration
+if "DATABASE_URL" in os.environ:
+    # Production: Use PostgreSQL via DATABASE_URL (Railway/Heroku)
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        DATABASES = {
+            "default": dj_database_url.parse(database_url)
+        }
+    else:
+        raise ValueError("DATABASE_URL environment variable is set but empty")
+elif "RAILWAY_ENVIRONMENT" in os.environ:
+    # Railway environment without DATABASE_URL (fallback)
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("PGDATABASE", "railway"),
+            "USER": os.environ.get("PGUSER", "postgres"),
+            "PASSWORD": os.environ.get("PGPASSWORD", ""),
+            "HOST": os.environ.get("PGHOST", "localhost"),
+            "PORT": os.environ.get("PGPORT", "5432"),
         }
     }
 else:
+    # Development: Use SQLite
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
