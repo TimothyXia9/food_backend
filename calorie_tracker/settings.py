@@ -210,7 +210,7 @@ LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Logging Configuration
-LOGGING = {
+# LOGGING = {
 	'version': 1,
 	'disable_existing_loggers': False,
 	'formatters': {
@@ -358,4 +358,19 @@ LOGGING = {
 			'level': 'INFO',
 		},
 	},
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'INFO',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
 }
