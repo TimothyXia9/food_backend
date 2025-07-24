@@ -42,9 +42,29 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-	CMD curl -f http://localhost:8000/api/v1/health/ || exit 1
+# Create entrypoint script for Railway PORT handling
+RUN echo '#!/bin/bash\n\
+# Set default port if PORT is not set\n\
+PORT=${PORT:-8000}\n\
+echo "Starting server on port: $PORT"\n\
+\n\
+# Run migrations\n\
+python manage.py migrate --noinput\n\
+\n\
+# Collect static files\n\
+python manage.py collectstatic --noinput\n\
+\n\
+# Start gunicorn with dynamic port\n\
+exec gunicorn calorie_tracker.wsgi:application \\\n\
+    --bind "0.0.0.0:${PORT}" \\\n\
+    --workers 2 \\\n\
+    --timeout 120 \\\n\
+    --log-level info\n\
+' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "calorie_tracker.wsgi:application"]
+# Health check with dynamic port
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+	CMD curl -f http://localhost:${PORT:-8000}/api/v1/health/ || exit 1
+
+# Run the application using entrypoint script
+CMD ["/app/entrypoint.sh"]
