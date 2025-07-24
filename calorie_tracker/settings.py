@@ -104,7 +104,7 @@ if "RAILWAY_ENVIRONMENT" in os.environ:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": "/tmp/db.sqlite3",
+            "NAME": ":memory:",
         }
     }
 else:
