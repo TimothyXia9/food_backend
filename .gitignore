@@ -27,9 +27,11 @@ db.sqlite3
 __pycache__/
 
 # Logs
-migrations/
+
 
 *.jpg
 
 *.log
 .env.production
+
+/staticfiles
