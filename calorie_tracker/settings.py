@@ -31,11 +31,15 @@ SECRET_KEY = config(
 DEBUG = config("DEBUG", default=True, cast=bool)
 
 # Parse ALLOWED_HOSTS from environment variable
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1",
-    cast=lambda x: [h.strip() for h in x.split(",") if h.strip()],
-)
+# Railway provides the host automatically, so we need to allow all for Railway
+if "RAILWAY_ENVIRONMENT" in os.environ:
+    ALLOWED_HOSTS = ["*"]  # Allow all hosts on Railway
+else:
+    ALLOWED_HOSTS = config(
+        "ALLOWED_HOSTS",
+        default="localhost,127.0.0.1",
+        cast=lambda x: [h.strip() for h in x.split(",") if h.strip()],
+    )
 
 
 # Application definition
@@ -154,8 +158,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Use WhiteNoise for static file serving in production
-if not DEBUG:
-    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+if not DEBUG or "RAILWAY_ENVIRONMENT" in os.environ:
+    if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+        MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
@@ -214,7 +219,11 @@ CORS_ALLOW_HEADERS = [
 # Media files for image uploads
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+# For Railway deployment, ensure media directory is writable
+if "RAILWAY_ENVIRONMENT" in os.environ:
+    MEDIA_ROOT = "/tmp/media"
+else:
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Custom user model
 AUTH_USER_MODEL = "accounts.User"
@@ -225,12 +234,21 @@ load_dotenv()
 import json
 
 
-USDA_API_KEYS = json.loads(os.getenv("USDA_API_KEYS", "[]"))
-OPENAI_API_KEYS = json.loads(os.getenv("OPENAI_API_KEYS", "[]"))
+# Handle API keys safely
+try:
+    USDA_API_KEYS = json.loads(os.getenv("USDA_API_KEYS", "[]"))
+except (json.JSONDecodeError, TypeError):
+    USDA_API_KEYS = []
 
-# Ensure logs directory exists
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOGS_DIR, exist_ok=True)
+try:
+    OPENAI_API_KEYS = json.loads(os.getenv("OPENAI_API_KEYS", "[]"))
+except (json.JSONDecodeError, TypeError):
+    OPENAI_API_KEYS = []
+
+# Ensure logs directory exists (only for local development)
+if "RAILWAY_ENVIRONMENT" not in os.environ:
+    LOGS_DIR = os.path.join(BASE_DIR, "logs")
+    os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Logging Configuration
 # LOGGING = {
