@@ -31,3 +31,6 @@ pytz==2023.3
 asgiref==3.9.1
 sqlparse==0.5.3
 setuptools==80.9.0
+
+# Railway deployment
+typing-extensions==4.8.0

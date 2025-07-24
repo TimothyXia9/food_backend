@@ -28,14 +28,21 @@ SECRET_KEY = config(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
 # Parse ALLOWED_HOSTS from environment variable
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1,*.railway.app",
+    default="localhost,127.0.0.1,*.railway.app,.up.railway.app",
     cast=lambda x: [h.strip() for h in x.split(",") if h.strip()],
 )
+
+# Allow all Railway hosts if RAILWAY_ENVIRONMENT is set
+if "RAILWAY_ENVIRONMENT" in os.environ:
+    ALLOWED_HOSTS.extend([
+        ".railway.app",
+        ".up.railway.app"
+    ])
 
 
 # Application definition
@@ -208,9 +215,8 @@ STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Use WhiteNoise for static file serving in production
-if not DEBUG:
-    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
