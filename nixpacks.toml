@@ -1,17 +1,16 @@
 [phases.setup]
-nixPkgs = ["python312"]
+nixPkgs = ["python312", "python312Packages.pip"]
 
 [phases.install]
 cmds = [
-    "pip install --upgrade pip",
-    "pip install -r requirements.txt"
+    "python -m pip install --upgrade pip",
+    "python -m pip install -r requirements.txt"
 ]
 
 [phases.build]
 cmds = [
-    "python manage.py collectstatic --noinput",
-    "python manage.py migrate --noinput"
+    "python manage.py collectstatic --noinput"
 ]
 
 [start]
-cmd = "gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT --log-level info --access-logfile - --error-logfile -"
+cmd = "python manage.py migrate --noinput && gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT --log-level info --access-logfile - --error-logfile -"
