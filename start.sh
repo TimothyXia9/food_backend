@@ -3,10 +3,10 @@
 # 设置错误时退出
 set -e
 
-echo "🚀 Starting Django application..."
+echo "Starting Django application..."
 
 # 创建必要的目录
-echo "📁 Creating necessary directories..."
+echo "Creating necessary directories..."
 mkdir -p staticfiles
 mkdir -p media
 mkdir -p logs
