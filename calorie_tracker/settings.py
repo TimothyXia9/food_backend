@@ -99,36 +99,75 @@ WSGI_APPLICATION = "calorie_tracker.wsgi.application"
 
 import dj_database_url
 
-# Database configuration
-if "DATABASE_URL" in os.environ:
-    # Production: Use PostgreSQL via DATABASE_URL (Railway/Heroku)
-    database_url = os.environ.get("DATABASE_URL")
-    if database_url:
-        DATABASES = {
-            "default": dj_database_url.parse(database_url)
+# Database configuration with Railway PostgreSQL troubleshooting
+def get_database_config():
+    """Get database configuration with fallback options"""
+    
+    # Print environment variables for debugging
+    print("=== DATABASE DEBUG INFO ===")
+    database_env_vars = {k: v for k, v in os.environ.items() if 'DATABASE' in k or 'PG' in k}
+    for key, value in database_env_vars.items():
+        if 'PASSWORD' in key:
+            print(f"{key}: [HIDDEN]")
+        else:
+            print(f"{key}: {value}")
+    print("========================")
+    
+    if "DATABASE_URL" in os.environ:
+        # Production: Use PostgreSQL via DATABASE_URL (Railway/Heroku)
+        database_url = os.environ.get("DATABASE_URL")
+        if database_url:
+            print(f"Using DATABASE_URL: {database_url.split('@')[0]}@[HOST_HIDDEN]")
+            parsed_db = dj_database_url.parse(database_url)
+            
+            # Add connection options for Railway
+            parsed_db.update({
+                'OPTIONS': {
+                    'connect_timeout': 60,
+                    'keepalives_idle': 600,
+                    'keepalives_interval': 30,
+                    'keepalives_count': 3,
+                },
+                'CONN_MAX_AGE': 60,
+                'CONN_HEALTH_CHECKS': True,
+            })
+            
+            return {"default": parsed_db}
+        else:
+            raise ValueError("DATABASE_URL environment variable is set but empty")
+    
+    elif "RAILWAY_ENVIRONMENT" in os.environ:
+        # Railway environment without DATABASE_URL (fallback to individual variables)
+        print("Using individual PostgreSQL environment variables")
+        return {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": os.environ.get("PGDATABASE", "railway"),
+                "USER": os.environ.get("PGUSER", "postgres"),
+                "PASSWORD": os.environ.get("PGPASSWORD", ""),
+                "HOST": os.environ.get("PGHOST", "localhost"),
+                "PORT": os.environ.get("PGPORT", "5432"),
+                "OPTIONS": {
+                    "connect_timeout": 60,
+                    "keepalives_idle": 600,
+                    "keepalives_interval": 30,
+                    "keepalives_count": 3,
+                },
+                "CONN_MAX_AGE": 60,
+                "CONN_HEALTH_CHECKS": True,
+            }
         }
     else:
-        raise ValueError("DATABASE_URL environment variable is set but empty")
-elif "RAILWAY_ENVIRONMENT" in os.environ:
-    # Railway environment without DATABASE_URL (fallback)
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("PGDATABASE", "railway"),
-            "USER": os.environ.get("PGUSER", "postgres"),
-            "PASSWORD": os.environ.get("PGPASSWORD", ""),
-            "HOST": os.environ.get("PGHOST", "localhost"),
-            "PORT": os.environ.get("PGPORT", "5432"),
+        # Development: Use SQLite
+        print("Using SQLite for development")
+        return {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
         }
-    }
-else:
-    # Development: Use SQLite
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+
+DATABASES = get_database_config()
 
 
 # Password validation
