@@ -13,11 +13,9 @@ from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-# Import OpenAI service and existing USDA service
+# Import OpenAI service and USDA service
 from .openai_service import get_openai_service
-import sys
-sys.path.append(str(Path(__file__).parent.parent / 'testing'))
-from test_usda_nutrition import USDANutritionAPI, format_nutrition_info
+from foods.usda_nutrition import USDANutritionAPI, format_nutrition_info
 
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
