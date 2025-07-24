@@ -1,2 +1,1 @@
-web: python manage.py setup_db && gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT
-release: python manage.py migrate --noinput && python manage.py collectstatic --noinput
+web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT
