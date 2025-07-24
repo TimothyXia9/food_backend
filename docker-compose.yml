@@ -5,7 +5,7 @@ services:
         build: .
         container_name: calorie_backend
         ports:
-            - "8000:8000"
+            - "${PORT:-8000}:${PORT:-8000}"
         volumes:
             - .:/app
             - ./logs:/app/logs
@@ -13,7 +13,7 @@ services:
             - ./db:/app/db
         environment:
             - DEBUG=True
-            - PORT=8000
+            - PORT=${PORT:-8000}
             - DJANGO_SETTINGS_MODULE=calorie_tracker.settings
         env_file:
             - .env
@@ -22,7 +22,7 @@ services:
         command: >
             sh -c "python manage.py migrate &&
                    python manage.py collectstatic --noinput &&
-                   gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
+                   gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"
 
     db:
         image: postgres:15
