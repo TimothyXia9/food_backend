@@ -1,2 +1,0 @@
-web: web: python manage.py migrate --noinput && mkdir -p staticfiles && python manage.py collectstatic --noinput && gunicorn calorie_tracker.wsgi:application --bind 0.0.0.0:$PORT
-release: python manage.py migrate --noinput && mkdir -p staticfiles && python manage.py collectstatic --noinput

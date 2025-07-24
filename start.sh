@@ -1,30 +1,37 @@
 #!/bin/bash
 
-# Create necessary directories
+# 设置错误时退出
+set -e
+
+echo "🚀 Starting Django application..."
+
+# 创建必要的目录
+echo "📁 Creating necessary directories..."
 mkdir -p staticfiles
 mkdir -p media
 mkdir -p logs
 
-# Print startup information
-echo "=== Django Application Startup ==="
-echo "Python version: $(python --version)"
-echo "Django version: $(python -c 'import django; print(django.get_version())')"
-echo "Working directory: $(pwd)"
-echo "Port: $PORT"
 
-# Test database connection (but don't fail if it doesn't work)
-echo ""
-echo "=== Testing Database Connection ==="
-python test_db_connection.py || echo "Database connection test failed, but continuing..."
+echo "Running database migrations..."
+python manage.py migrate --noinput
 
-echo ""
-echo "=== Starting Gunicorn ==="
-# Start gunicorn with proper logging
+# 收集静态文件
+echo "Collecting static files..."
+python manage.py collectstatic --noinput --clear
+
+# 可选：创建超级用户（如果需要）
+# if [ "$CREATE_SUPERUSER" = "true" ]; then
+#     echo "👤 Creating superuser..."
+#     python manage.py createsuperuser --noinput || echo "Superuser already exists"
+# fi
+
+echo "Starting Gunicorn server..."
+
+# 启动 Gunicorn
 exec gunicorn calorie_tracker.wsgi:application \
     --bind 0.0.0.0:$PORT \
     --workers 1 \
-    --timeout 300 \
-    --log-level info \
+    --timeout 120 \
     --access-logfile - \
     --error-logfile - \
-    --capture-output
+    --log-level info
