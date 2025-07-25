@@ -294,10 +294,22 @@ if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Allow standard headers
+# Allow standard headers and streaming-specific headers
 CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
+    "cache-control",
+    "x-requested-with",
+]
+
+# Allow additional methods for streaming
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
 ]
 
 # Media files for image uploads
