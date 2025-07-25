@@ -1218,6 +1218,86 @@ Analyze an uploaded image for food recognition.
 
 ---
 
+### Analyze Image Stream
+
+**POST** `/images/analyze-stream/`
+
+Analyze an uploaded image for food recognition with real-time streaming results using Server-Sent Events (SSE).
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+	"image_id": "number (required)"
+}
+```
+
+**Response (200 OK - text/event-stream):**
+
+The endpoint returns a streaming response with Server-Sent Events (SSE) format. Each event contains JSON data with the current analysis step:
+
+```
+data: {"step": "stage1_start", "message": "Starting food identification..."}
+
+data: {"step": "stage1_progress", "message": "Analyzing image content..."}
+
+data: {"step": "stage1_complete", "foods": [{"name": "Apple", "quantity": "1 medium", "confidence": 0.92}]}
+
+data: {"step": "stage2_start", "message": "Fetching nutrition data..."}
+
+data: {"step": "stage2_progress", "message": "Looking up USDA data for Apple..."}
+
+data: {"step": "stage2_complete", "message": "Analysis complete", "results": [...]}
+```
+
+**Streaming Event Types:**
+- `stage1_start`: Initial food identification phase begins
+- `stage1_progress`: Progress updates during food identification
+- `stage1_complete`: Food identification complete, includes initial food list
+- `stage2_start`: Nutrition data lookup phase begins
+- `stage2_progress`: Progress updates during nutrition lookup
+- `stage2_complete`: Complete analysis finished with full results
+- `error`: Analysis error occurred
+
+**Headers:**
+- `Content-Type: text/event-stream; charset=utf-8`
+- `Cache-Control: no-cache, no-store, must-revalidate`
+- `Access-Control-Allow-Origin: http://localhost:3000`
+
+**JavaScript Client Example:**
+```javascript
+const eventSource = new EventSource('/api/v1/images/analyze-stream/', {
+  headers: {
+    'Authorization': 'Bearer ' + token
+  }
+});
+
+eventSource.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  console.log('Analysis step:', data.step, data.message);
+  
+  if (data.step === 'stage2_complete') {
+    console.log('Final results:', data.results);
+    eventSource.close();
+  }
+};
+
+eventSource.onerror = function(event) {
+  console.error('Stream error:', event);
+  eventSource.close();
+};
+```
+
+**Notes:**
+- Uses Server-Sent Events (SSE) for real-time progress updates
+- Provides step-by-step analysis feedback to improve user experience
+- Automatically handles CORS for frontend integration
+- Stream closes automatically when analysis is complete or fails
+- Supports the same two-stage analysis as the regular analyze endpoint
+
+---
+
 ### Get Image Results
 
 **GET** `/images/{image_id}/results/`
