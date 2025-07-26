@@ -35,16 +35,16 @@ def clean_json_response(content: str) -> str:
     清理OpenAI响应中的JSON，移除可能的代码块标记
     """
     cleaned_content = content.strip()
-    
+
     # 移除各种可能的代码块标记
-    if cleaned_content.startswith('```json'):
+    if cleaned_content.startswith("```json"):
         cleaned_content = cleaned_content[7:]
-    elif cleaned_content.startswith('```'):
+    elif cleaned_content.startswith("```"):
         cleaned_content = cleaned_content[3:]
-    
-    if cleaned_content.endswith('```'):
+
+    if cleaned_content.endswith("```"):
         cleaned_content = cleaned_content[:-3]
-    
+
     return cleaned_content.strip()
 
 
@@ -187,7 +187,7 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
             try:
                 # 清理响应内容，移除可能的代码块标记
                 cleaned_content = clean_json_response(content)
-                
+
                 # 尝试解析JSON
                 stage1_data = json.loads(cleaned_content)
                 if "foods" in stage1_data and isinstance(stage1_data["foods"], list):
@@ -273,7 +273,7 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
             try:
                 # 清理响应内容，移除可能的代码块标记
                 cleaned_content = clean_json_response(content)
-                
+
                 # 尝试解析JSON
                 stage2_data = json.loads(cleaned_content)
                 if "portions" in stage2_data and isinstance(
@@ -426,7 +426,7 @@ def analyze_food_image_streaming(image_path: str, image_id: int):
             try:
                 # 清理响应内容，移除可能的代码块标记
                 cleaned_content = clean_json_response(content)
-                
+
                 # 尝试解析JSON
                 stage1_data = json.loads(cleaned_content)
                 if "foods" in stage1_data and isinstance(stage1_data["foods"], list):
@@ -517,7 +517,7 @@ def analyze_food_image_streaming(image_path: str, image_id: int):
             try:
                 # 清理响应内容，移除可能的代码块标记
                 cleaned_content = clean_json_response(content)
-                
+
                 # 尝试解析JSON
                 stage2_data = json.loads(cleaned_content)
                 if "portions" in stage2_data and isinstance(
