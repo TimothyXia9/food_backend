@@ -3,10 +3,11 @@
 ## Changelog
 
 ### 2025-07-19 - USDA Food Integration
-- **Enhanced Meal Creation**: Added support for automatic USDA food creation in meal endpoints
-- **New Parameters**: Added `fdc_id` and `name` parameters for USDA foods
-- **Automatic Processing**: System now automatically fetches USDA nutrition data and creates local food records
-- **Affected Endpoints**: `POST /meals/create/` and `POST /meals/{meal_id}/add-food/`
+
+-   **Enhanced Meal Creation**: Added support for automatic USDA food creation in meal endpoints
+-   **New Parameters**: Added `fdc_id` and `name` parameters for USDA foods
+-   **Automatic Processing**: System now automatically fetches USDA nutrition data and creates local food records
+-   **Affected Endpoints**: `POST /meals/create/` and `POST /meals/{meal_id}/add-food/`
 
 ## Overview
 
@@ -14,8 +15,8 @@ This document provides comprehensive documentation for the calorie tracking Djan
 
 ## Base URL
 
-- **Development**: `http://localhost:8000/api/v1`
-- **Production**: `https://your-domain.com/api/v1`
+-   **Development**: `http://localhost:8000/api/v1`
+-   **Production**: `https://your-domain.com/api/v1`
 
 ## Authentication
 
@@ -30,6 +31,7 @@ Authorization: Bearer <access_token>
 All API responses follow this standardized format:
 
 ### Success Response
+
 ```json
 {
 	"success": true,
@@ -39,6 +41,7 @@ All API responses follow this standardized format:
 ```
 
 ### Error Response
+
 ```json
 {
 	"success": false,
@@ -52,11 +55,11 @@ All API responses follow this standardized format:
 
 ## Error Codes
 
-- `VALIDATION_ERROR`: Request data validation failed
-- `AUTHENTICATION_ERROR`: Invalid credentials or token
-- `AUTHORIZATION_ERROR`: Insufficient permissions
-- `NOT_FOUND_ERROR`: Requested resource not found
-- `PROCESSING_ERROR`: Server-side processing error
+-   `VALIDATION_ERROR`: Request data validation failed
+-   `AUTHENTICATION_ERROR`: Invalid credentials or token
+-   `AUTHORIZATION_ERROR`: Insufficient permissions
+-   `NOT_FOUND_ERROR`: Requested resource not found
+-   `PROCESSING_ERROR`: Server-side processing error
 
 ---
 
@@ -69,6 +72,7 @@ All API responses follow this standardized format:
 Register a new user account.
 
 **Request Body:**
+
 ```json
 {
 	"username": "string (required)",
@@ -79,6 +83,7 @@ Register a new user account.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -104,7 +109,8 @@ Register a new user account.
 ```
 
 **Errors:**
-- `400`: Validation errors (username/email already exists, weak password)
+
+-   `400`: Validation errors (username/email already exists, weak password)
 
 ---
 
@@ -115,6 +121,7 @@ Register a new user account.
 Authenticate user and obtain JWT tokens.
 
 **Request Body:**
+
 ```json
 {
 	"username": "string (required)",
@@ -123,6 +130,7 @@ Authenticate user and obtain JWT tokens.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -142,7 +150,8 @@ Authenticate user and obtain JWT tokens.
 ```
 
 **Errors:**
-- `401`: Invalid credentials
+
+-   `401`: Invalid credentials
 
 ---
 
@@ -153,6 +162,7 @@ Authenticate user and obtain JWT tokens.
 Refresh an access token using a refresh token.
 
 **Request Body:**
+
 ```json
 {
 	"refresh": "string (required)"
@@ -160,6 +170,7 @@ Refresh an access token using a refresh token.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -171,7 +182,8 @@ Refresh an access token using a refresh token.
 ```
 
 **Errors:**
-- `401`: Invalid refresh token
+
+-   `401`: Invalid refresh token
 
 ---
 
@@ -184,6 +196,7 @@ Logout user and blacklist refresh token.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"refresh_token": "string (required)"
@@ -191,6 +204,7 @@ Logout user and blacklist refresh token.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -212,6 +226,7 @@ Get the authenticated user's profile information.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -242,6 +257,7 @@ Update the authenticated user's profile information.
 **Authentication:** Required
 
 **Request Body (all fields optional):**
+
 ```json
 {
 	"nickname": "string",
@@ -254,6 +270,7 @@ Update the authenticated user's profile information.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -287,13 +304,15 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 **Authentication:** None required (public access)
 
 **Query Parameters:**
-- `query` (required): Search term
-- `page` (optional): Page number (default: 1)
-- `page_size` (optional): Items per page (default: 20)
+
+-   `query` (required): Search term
+-   `page` (optional): Page number (default: 1)
+-   `page_size` (optional): Items per page (default: 20)
 
 **Example:** `/foods/search/?query=apple&page=1&page_size=10`
 
 **Response (200 OK) - USDA Results:**
+
 ```json
 {
 	"success": true,
@@ -314,7 +333,7 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 				"fiber_per_100g": 2.4,
 				"sugar_per_100g": 10.4,
 				"sodium_per_100g": 1.0,
-				"category": {"name": "USDA Food"},
+				"category": { "name": "USDA Food" },
 				"serving_size": 100,
 				"is_custom": false
 			}
@@ -331,6 +350,7 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 ```
 
 **Response (200 OK) - Local Fallback Results:**
+
 ```json
 {
 	"success": true,
@@ -348,7 +368,7 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 				"is_custom": false,
 				"is_verified": true,
 				"is_usda": false,
-				"category": {"name": "Fruits"}
+				"category": { "name": "Fruits" }
 			}
 		],
 		"total_count": 1,
@@ -363,11 +383,12 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 ```
 
 **Notes:**
-- The search now prioritizes USDA FoodData Central database
-- If USDA is unavailable, falls back to local database
-- USDA results include `is_usda: true` and `fdc_id` fields
-- Food names are enhanced with brand information when available
-- Some USDA search results may have `calories_per_100g: 0` until detailed nutrition is fetched
+
+-   The search now prioritizes USDA FoodData Central database
+-   If USDA is unavailable, falls back to local database
+-   USDA results include `is_usda: true` and `fdc_id` fields
+-   Food names are enhanced with brand information when available
+-   Some USDA search results may have `calories_per_100g: 0` until detailed nutrition is fetched
 
 ---
 
@@ -380,6 +401,7 @@ Get detailed information about a specific food.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -405,7 +427,6 @@ Get detailed information about a specific food.
 
 ---
 
-
 ### Create Custom Food
 
 **POST** `/foods/create/`
@@ -415,6 +436,7 @@ Create a custom food entry.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"name": "string (required)",
@@ -431,6 +453,7 @@ Create a custom food entry.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -459,6 +482,7 @@ Update a food entry (only custom foods created by the user).
 **Request Body:** Same as Create Custom Food
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -468,8 +492,9 @@ Update a food entry (only custom foods created by the user).
 ```
 
 **Errors:**
-- `403`: Cannot edit non-custom foods or foods created by other users
-- `404`: Food not found
+
+-   `403`: Cannot edit non-custom foods or foods created by other users
+-   `404`: Food not found
 
 ---
 
@@ -482,6 +507,7 @@ Delete a food entry (only custom foods created by the user).
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -491,8 +517,9 @@ Delete a food entry (only custom foods created by the user).
 ```
 
 **Errors:**
-- `403`: Cannot delete non-custom foods or foods created by other users
-- `404`: Food not found
+
+-   `403`: Cannot delete non-custom foods or foods created by other users
+-   `404`: Food not found
 
 ---
 
@@ -507,11 +534,13 @@ Search foods in the USDA FoodData Central database.
 **Authentication:** Required
 
 **Query Parameters:**
-- `query` (required): Search term
-- `page` (optional): Page number (default: 1)
-- `page_size` (optional): Items per page (default: 20)
+
+-   `query` (required): Search term
+-   `page` (optional): Page number (default: 1)
+-   `page_size` (optional): Items per page (default: 20)
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -543,6 +572,7 @@ Get detailed nutrition information for a USDA food. **Now returns data in Food i
 **Authentication:** None required (public access)
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -561,7 +591,7 @@ Get detailed nutrition information for a USDA food. **Now returns data in Food i
 		"fiber_per_100g": 2.4,
 		"sugar_per_100g": 10.39,
 		"sodium_per_100g": 1.0,
-		"category": {"name": "USDA Food"},
+		"category": { "name": "USDA Food" },
 		"serving_size": 100,
 		"is_custom": false,
 		"is_verified": true,
@@ -586,9 +616,10 @@ Get detailed nutrition information for a USDA food. **Now returns data in Food i
 ```
 
 **Notes:**
-- Returns complete nutrition data formatted to match our Food interface
-- Includes both structured nutrition data and detailed nutrient breakdown
-- Can be used directly in frontend components without additional processing
+
+-   Returns complete nutrition data formatted to match our Food interface
+-   Includes both structured nutrition data and detailed nutrient breakdown
+-   Can be used directly in frontend components without additional processing
 
 ---
 
@@ -601,6 +632,7 @@ Create a food entry from USDA data.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"fdc_id": "string (required)",
@@ -609,6 +641,7 @@ Create a food entry from USDA data.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -634,9 +667,11 @@ Get the user's food search history.
 **Authentication:** Required
 
 **Query Parameters:**
-- `limit` (optional): Number of recent searches (default: 10)
+
+-   `limit` (optional): Number of recent searches (default: 10)
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -667,6 +702,7 @@ Create a new meal entry.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"date": "YYYY-MM-DD (required)",
@@ -693,6 +729,7 @@ The API now supports automatic creation of USDA foods when adding them to meals.
 3. Optionally include `name` as a fallback food name
 
 Example with USDA food:
+
 ```json
 {
 	"date": "2024-01-15",
@@ -714,11 +751,13 @@ Example with USDA food:
 ```
 
 The system will:
-- Check if a food with the given `fdc_id` already exists locally
-- If not, automatically fetch nutrition data from USDA and create a local Food record
-- Add the food to the meal with accurate nutritional calculations
+
+-   Check if a food with the given `fdc_id` already exists locally
+-   If not, automatically fetch nutrition data from USDA and create a local Food record
+-   Add the food to the meal with accurate nutritional calculations
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -758,6 +797,7 @@ Get detailed information about a specific meal.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -789,6 +829,7 @@ Update a meal entry.
 **Request Body:** Same as Create Meal
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -808,6 +849,7 @@ Delete a meal entry.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -827,12 +869,14 @@ Get meals for the authenticated user.
 **Authentication:** Required
 
 **Query Parameters:**
-- `date` (optional): Filter by specific date (YYYY-MM-DD)
-- `meal_type` (optional): Filter by meal type
-- `page` (optional): Page number (default: 1)
-- `page_size` (optional): Items per page (default: 20)
+
+-   `date` (optional): Filter by specific date (YYYY-MM-DD)
+-   `meal_type` (optional): Filter by meal type
+-   `page` (optional): Page number (default: 1)
+-   `page_size` (optional): Items per page (default: 20)
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -885,9 +929,11 @@ Get the user's most recent meals.
 **Authentication:** Required
 
 **Query Parameters:**
-- `limit` (optional): Number of recent meals (default: 10)
+
+-   `limit` (optional): Number of recent meals (default: 10)
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -908,6 +954,7 @@ Add a food item to an existing meal.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"food_id": "number (required, use -1 for USDA foods)",
@@ -926,6 +973,7 @@ Similar to meal creation, this endpoint supports adding USDA foods. For USDA foo
 3. Optionally include `name` as a fallback food name
 
 Example with USDA food:
+
 ```json
 {
 	"food_id": -1,
@@ -936,6 +984,7 @@ Example with USDA food:
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -963,6 +1012,7 @@ Update the quantity of a food item in a meal.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"quantity": "number (required)"
@@ -970,6 +1020,7 @@ Update the quantity of a food item in a meal.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -989,6 +1040,7 @@ Remove a food item from a meal.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1008,6 +1060,7 @@ Create a meal plan for multiple days.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"start_date": "YYYY-MM-DD (required)",
@@ -1026,6 +1079,7 @@ Create a meal plan for multiple days.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -1051,9 +1105,11 @@ Get nutrition summary for a specific date.
 **Authentication:** Required
 
 **Query Parameters:**
-- `date` (optional): Date in YYYY-MM-DD format (default: today)
+
+-   `date` (optional): Date in YYYY-MM-DD format (default: today)
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1092,11 +1148,13 @@ Get nutrition statistics over a time period.
 **Authentication:** Required
 
 **Query Parameters:**
-- `start_date` (optional): Start date (YYYY-MM-DD)
-- `end_date` (optional): End date (YYYY-MM-DD)
-- `period` (optional): 'weekly' | 'monthly' (default: 'weekly')
+
+-   `start_date` (optional): Start date (YYYY-MM-DD)
+-   `end_date` (optional): End date (YYYY-MM-DD)
+-   `period` (optional): 'weekly' | 'monthly' (default: 'weekly')
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1132,6 +1190,7 @@ Record a weight measurement.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"weight": "number (required)",
@@ -1141,6 +1200,7 @@ Record a weight measurement.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -1167,10 +1227,12 @@ Upload a food image for analysis.
 **Authentication:** Required
 
 **Request Body (multipart/form-data):**
-- `image`: Image file (JPG, PNG, max 10MB)
-- `notes` (optional): Description or notes about the image
+
+-   `image`: Image file (JPG, PNG, max 10MB)
+-   `notes` (optional): Description or notes about the image
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -1196,6 +1258,7 @@ Analyze an uploaded image for food recognition.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"image_id": "number (required)",
@@ -1204,6 +1267,7 @@ Analyze an uploaded image for food recognition.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1227,6 +1291,7 @@ Analyze an uploaded image for food recognition with real-time streaming results 
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"image_id": "number (required)"
@@ -1248,53 +1313,62 @@ data: {"step": "stage2_start", "message": "Fetching nutrition data..."}
 
 data: {"step": "stage2_progress", "message": "Looking up USDA data for Apple..."}
 
-data: {"step": "stage2_complete", "message": "Analysis complete", "results": [...]}
+data: {"step": "stage2_complete", "message": "Analysis complete", "results": [{
+        "portions": [
+                {"name": "猪排", "estimated_grams": 300, "cooking_method": "煎"},
+                {"name": "青菜", "estimated_grams": 100, "cooking_method": "炒"}
+        ]
+}]}
 ```
 
 **Streaming Event Types:**
-- `stage1_start`: Initial food identification phase begins
-- `stage1_progress`: Progress updates during food identification
-- `stage1_complete`: Food identification complete, includes initial food list
-- `stage2_start`: Nutrition data lookup phase begins
-- `stage2_progress`: Progress updates during nutrition lookup
-- `stage2_complete`: Complete analysis finished with full results
-- `error`: Analysis error occurred
+
+-   `stage1_start`: Initial food identification phase begins
+-   `stage1_progress`: Progress updates during food identification
+-   `stage1_complete`: Food identification complete, includes initial food list
+-   `stage2_start`: Nutrition data lookup phase begins
+-   `stage2_progress`: Progress updates during nutrition lookup
+-   `stage2_complete`: Complete analysis finished with full results
+-   `error`: Analysis error occurred
 
 **Headers:**
-- `Content-Type: text/event-stream; charset=utf-8`
-- `Cache-Control: no-cache, no-store, must-revalidate`
-- `Access-Control-Allow-Origin: http://localhost:3000`
+
+-   `Content-Type: text/event-stream; charset=utf-8`
+-   `Cache-Control: no-cache, no-store, must-revalidate`
+-   `Access-Control-Allow-Origin: http://localhost:3000`
 
 **JavaScript Client Example:**
+
 ```javascript
-const eventSource = new EventSource('/api/v1/images/analyze-stream/', {
-  headers: {
-    'Authorization': 'Bearer ' + token
-  }
+const eventSource = new EventSource("/api/v1/images/analyze-stream/", {
+	headers: {
+		Authorization: "Bearer " + token,
+	},
 });
 
-eventSource.onmessage = function(event) {
-  const data = JSON.parse(event.data);
-  console.log('Analysis step:', data.step, data.message);
-  
-  if (data.step === 'stage2_complete') {
-    console.log('Final results:', data.results);
-    eventSource.close();
-  }
+eventSource.onmessage = function (event) {
+	const data = JSON.parse(event.data);
+	console.log("Analysis step:", data.step, data.message);
+
+	if (data.step === "stage2_complete") {
+		console.log("Final results:", data.results);
+		eventSource.close();
+	}
 };
 
-eventSource.onerror = function(event) {
-  console.error('Stream error:', event);
-  eventSource.close();
+eventSource.onerror = function (event) {
+	console.error("Stream error:", event);
+	eventSource.close();
 };
 ```
 
 **Notes:**
-- Uses Server-Sent Events (SSE) for real-time progress updates
-- Provides step-by-step analysis feedback to improve user experience
-- Automatically handles CORS for frontend integration
-- Stream closes automatically when analysis is complete or fails
-- Supports the same two-stage analysis as the regular analyze endpoint
+
+-   Uses Server-Sent Events (SSE) for real-time progress updates
+-   Provides step-by-step analysis feedback to improve user experience
+-   Automatically handles CORS for frontend integration
+-   Stream closes automatically when analysis is complete or fails
+-   Supports the same two-stage analysis as the regular analyze endpoint
 
 ---
 
@@ -1307,6 +1381,7 @@ Get the food recognition results for an analyzed image.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1350,6 +1425,7 @@ Delete an uploaded image and its analysis results.
 **Authentication:** Required
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1369,11 +1445,13 @@ Get all images uploaded by the authenticated user.
 **Authentication:** Required
 
 **Query Parameters:**
-- `page` (optional): Page number (default: 1)
-- `page_size` (optional): Items per page (default: 20)
-- `status` (optional): Filter by status ('uploaded', 'processing', 'completed', 'failed')
+
+-   `page` (optional): Page number (default: 1)
+-   `page_size` (optional): Items per page (default: 20)
+-   `status` (optional): Filter by status ('uploaded', 'processing', 'completed', 'failed')
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1407,6 +1485,7 @@ Confirm or correct the food recognition results.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"result_id": "number (required)",
@@ -1422,6 +1501,7 @@ Confirm or correct the food recognition results.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
 	"success": true,
@@ -1445,6 +1525,7 @@ Create a meal entry from confirmed image recognition results.
 **Authentication:** Required
 
 **Request Body:**
+
 ```json
 {
 	"image_id": "number (required)",
@@ -1455,6 +1536,7 @@ Create a meal entry from confirmed image recognition results.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
 	"success": true,
@@ -1472,43 +1554,45 @@ Create a meal entry from confirmed image recognition results.
 
 ## Rate Limits
 
-| Endpoint Type | Rate Limit | Window |
-|---------------|------------|--------|
-| Authentication | 10 requests | 1 minute |
-| Image Upload | 20 requests | 1 hour |
-| Image Analysis | 10 requests | 1 hour |
-| USDA API | 100 requests | 1 hour |
-| General API | 1000 requests | 1 hour |
+| Endpoint Type  | Rate Limit    | Window   |
+| -------------- | ------------- | -------- |
+| Authentication | 10 requests   | 1 minute |
+| Image Upload   | 20 requests   | 1 hour   |
+| Image Analysis | 10 requests   | 1 hour   |
+| USDA API       | 100 requests  | 1 hour   |
+| General API    | 1000 requests | 1 hour   |
 
 ## HTTP Status Codes
 
-- `200 OK`: Request successful
-- `201 Created`: Resource created successfully
-- `400 Bad Request`: Invalid request data
-- `401 Unauthorized`: Authentication required or failed
-- `403 Forbidden`: Insufficient permissions
-- `404 Not Found`: Resource not found
-- `429 Too Many Requests`: Rate limit exceeded
-- `500 Internal Server Error`: Server error
+-   `200 OK`: Request successful
+-   `201 Created`: Resource created successfully
+-   `400 Bad Request`: Invalid request data
+-   `401 Unauthorized`: Authentication required or failed
+-   `403 Forbidden`: Insufficient permissions
+-   `404 Not Found`: Resource not found
+-   `429 Too Many Requests`: Rate limit exceeded
+-   `500 Internal Server Error`: Server error
 
 ## Pagination
 
 List endpoints support pagination with the following parameters:
 
-- `page`: Page number (default: 1)
-- `page_size`: Items per page (default: 20, max: 100)
+-   `page`: Page number (default: 1)
+-   `page_size`: Items per page (default: 20, max: 100)
 
 Pagination response includes:
-- `total_count`: Total number of items
-- `page`: Current page number
-- `page_size`: Items per page
-- `total_pages`: Total number of pages
+
+-   `total_count`: Total number of items
+-   `page`: Current page number
+-   `page_size`: Items per page
+-   `total_pages`: Total number of pages
 
 ## Testing
 
 Use the following curl commands to test the API:
 
 ### Authentication Test
+
 ```bash
 # Register
 curl -X POST http://localhost:8000/api/v1/auth/register \
@@ -1522,6 +1606,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ```
 
 ### Authenticated Request Test
+
 ```bash
 TOKEN="your-jwt-token-here"
 
