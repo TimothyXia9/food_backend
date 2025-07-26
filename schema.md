@@ -213,18 +213,18 @@ CREATE INDEX idx_activity_logs_type ON user_activity_logs(activity_type);
 
 ### Key Relationships
 
--   Users have one profile (1:1)
--   Users can have multiple meals (1:N)
--   Users can have multiple daily summaries (1:N)
--   Meals can contain multiple foods (N:M via meal_foods)
--   Foods can belong to categories (N:1)
--   Foods can have multiple aliases (1:N)
--   Users can upload multiple images (1:N)
--   Images can have multiple recognition results (1:N)
+- Users have one profile (1:1)
+- Users can have multiple meals (1:N)
+- Users can have multiple daily summaries (1:N)
+- Meals can contain multiple foods (N:M via meal_foods)
+- Foods can belong to categories (N:1)
+- Foods can have multiple aliases (1:N)
+- Users can upload multiple images (1:N)
+- Images can have multiple recognition results (1:N)
 
 ### Cascade Rules
 
--   When a user is deleted: CASCADE delete profile, meals, summaries, images
--   When a meal is deleted: CASCADE delete meal_foods entries
--   When a food is deleted: SET NULL in meal_foods, recognition_results
--   When an image is deleted: CASCADE delete recognition_results
+- When a user is deleted: CASCADE delete profile, meals, summaries, images
+- When a meal is deleted: CASCADE delete meal_foods entries
+- When a food is deleted: SET NULL in meal_foods, recognition_results
+- When an image is deleted: CASCADE delete recognition_results

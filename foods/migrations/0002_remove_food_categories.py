@@ -6,28 +6,35 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('foods', '0001_initial'),
+        ("foods", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='food',
-            name='foods_food_categor_87d016_idx',
+            model_name="food",
+            name="foods_food_categor_87d016_idx",
         ),
         migrations.RemoveField(
-            model_name='food',
-            name='category',
+            model_name="food",
+            name="category",
         ),
         migrations.AddField(
-            model_name='food',
-            name='usda_fdc_id',
-            field=models.CharField(blank=True, help_text='USDA FoodData Central ID', max_length=20, null=True),
+            model_name="food",
+            name="usda_fdc_id",
+            field=models.CharField(
+                blank=True,
+                help_text="USDA FoodData Central ID",
+                max_length=20,
+                null=True,
+            ),
         ),
         migrations.AddIndex(
-            model_name='food',
-            index=models.Index(fields=['usda_fdc_id'], name='foods_food_usda_fd_29b569_idx'),
+            model_name="food",
+            index=models.Index(
+                fields=["usda_fdc_id"], name="foods_food_usda_fd_29b569_idx"
+            ),
         ),
         migrations.DeleteModel(
-            name='FoodCategory',
+            name="FoodCategory",
         ),
     ]

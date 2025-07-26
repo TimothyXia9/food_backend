@@ -2,12 +2,20 @@
 
 ## Changelog
 
+### 2025-07-26 - Image Analysis Streaming Format Update
+
+- **Corrected Data Structure**: Updated streaming response format for `/images/analyze-stream/`
+- **Fixed Field Names**: Corrected `stage_2.food_portions` instead of incorrect `results.portions`
+- **Updated Event Types**: Changed from `stage1_*`/`stage2_*` to `start`, `food_detection`, `portion_estimation`, `complete`
+- **Enhanced Documentation**: Added detailed data structure explanation and improved JavaScript client example
+- **Breaking Change**: Frontend applications should listen for `stage_2.food_portions` instead of `results.portions`
+
 ### 2025-07-19 - USDA Food Integration
 
--   **Enhanced Meal Creation**: Added support for automatic USDA food creation in meal endpoints
--   **New Parameters**: Added `fdc_id` and `name` parameters for USDA foods
--   **Automatic Processing**: System now automatically fetches USDA nutrition data and creates local food records
--   **Affected Endpoints**: `POST /meals/create/` and `POST /meals/{meal_id}/add-food/`
+- **Enhanced Meal Creation**: Added support for automatic USDA food creation in meal endpoints
+- **New Parameters**: Added `fdc_id` and `name` parameters for USDA foods
+- **Automatic Processing**: System now automatically fetches USDA nutrition data and creates local food records
+- **Affected Endpoints**: `POST /meals/create/` and `POST /meals/{meal_id}/add-food/`
 
 ## Overview
 
@@ -15,8 +23,8 @@ This document provides comprehensive documentation for the calorie tracking Djan
 
 ## Base URL
 
--   **Development**: `http://localhost:8000/api/v1`
--   **Production**: `https://your-domain.com/api/v1`
+- **Development**: `http://localhost:8000/api/v1`
+- **Production**: `https://your-domain.com/api/v1`
 
 ## Authentication
 
@@ -55,11 +63,11 @@ All API responses follow this standardized format:
 
 ## Error Codes
 
--   `VALIDATION_ERROR`: Request data validation failed
--   `AUTHENTICATION_ERROR`: Invalid credentials or token
--   `AUTHORIZATION_ERROR`: Insufficient permissions
--   `NOT_FOUND_ERROR`: Requested resource not found
--   `PROCESSING_ERROR`: Server-side processing error
+- `VALIDATION_ERROR`: Request data validation failed
+- `AUTHENTICATION_ERROR`: Invalid credentials or token
+- `AUTHORIZATION_ERROR`: Insufficient permissions
+- `NOT_FOUND_ERROR`: Requested resource not found
+- `PROCESSING_ERROR`: Server-side processing error
 
 ---
 
@@ -75,10 +83,10 @@ Register a new user account.
 
 ```json
 {
-	"username": "string (required)",
-	"email": "string (required)",
-	"password": "string (required, min 8 chars)",
-	"nickname": "string (optional)"
+  "username": "string (required)",
+  "email": "string (required)",
+  "password": "string (required, min 8 chars)",
+  "nickname": "string (optional)"
 }
 ```
 
@@ -86,31 +94,31 @@ Register a new user account.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"user": {
-			"id": 1,
-			"username": "johndoe",
-			"email": "john@example.com",
-			"nickname": "John",
-			"profile": {
-				"date_of_birth": null,
-				"gender": null,
-				"height": null,
-				"weight": null,
-				"daily_calorie_goal": null
-			}
-		},
-		"token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-		"refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-	},
-	"message": "User registered successfully"
+  "success": true,
+  "data": {
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "nickname": "John",
+      "profile": {
+        "date_of_birth": null,
+        "gender": null,
+        "height": null,
+        "weight": null,
+        "daily_calorie_goal": null
+      }
+    },
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  },
+  "message": "User registered successfully"
 }
 ```
 
 **Errors:**
 
--   `400`: Validation errors (username/email already exists, weak password)
+- `400`: Validation errors (username/email already exists, weak password)
 
 ---
 
@@ -124,8 +132,8 @@ Authenticate user and obtain JWT tokens.
 
 ```json
 {
-	"username": "string (required)",
-	"password": "string (required)"
+  "username": "string (required)",
+  "password": "string (required)"
 }
 ```
 
@@ -151,7 +159,7 @@ Authenticate user and obtain JWT tokens.
 
 **Errors:**
 
--   `401`: Invalid credentials
+- `401`: Invalid credentials
 
 ---
 
@@ -165,7 +173,7 @@ Refresh an access token using a refresh token.
 
 ```json
 {
-	"refresh": "string (required)"
+  "refresh": "string (required)"
 }
 ```
 
@@ -173,17 +181,17 @@ Refresh an access token using a refresh token.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-	},
-	"message": "Token refreshed successfully"
+  "success": true,
+  "data": {
+    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  },
+  "message": "Token refreshed successfully"
 }
 ```
 
 **Errors:**
 
--   `401`: Invalid refresh token
+- `401`: Invalid refresh token
 
 ---
 
@@ -199,7 +207,7 @@ Logout user and blacklist refresh token.
 
 ```json
 {
-	"refresh_token": "string (required)"
+  "refresh_token": "string (required)"
 }
 ```
 
@@ -207,9 +215,9 @@ Logout user and blacklist refresh token.
 
 ```json
 {
-	"success": true,
-	"data": null,
-	"message": "Logged out successfully"
+  "success": true,
+  "data": null,
+  "message": "Logged out successfully"
 }
 ```
 
@@ -229,20 +237,20 @@ Get the authenticated user's profile information.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1,
-		"username": "johndoe",
-		"email": "john@example.com",
-		"nickname": "John",
-		"profile": {
-			"date_of_birth": "1990-01-01",
-			"gender": "M",
-			"height": 175.5,
-			"weight": 70.0,
-			"daily_calorie_goal": 2000
-		}
-	}
+  "success": true,
+  "data": {
+    "id": 1,
+    "username": "johndoe",
+    "email": "john@example.com",
+    "nickname": "John",
+    "profile": {
+      "date_of_birth": "1990-01-01",
+      "gender": "M",
+      "height": 175.5,
+      "weight": 70.0,
+      "daily_calorie_goal": 2000
+    }
+  }
 }
 ```
 
@@ -260,12 +268,12 @@ Update the authenticated user's profile information.
 
 ```json
 {
-	"nickname": "string",
-	"date_of_birth": "YYYY-MM-DD",
-	"gender": "M|F|O",
-	"height": "number",
-	"weight": "number",
-	"daily_calorie_goal": "number"
+  "nickname": "string",
+  "date_of_birth": "YYYY-MM-DD",
+  "gender": "M|F|O",
+  "height": "number",
+  "weight": "number",
+  "daily_calorie_goal": "number"
 }
 ```
 
@@ -273,21 +281,21 @@ Update the authenticated user's profile information.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1,
-		"username": "johndoe",
-		"email": "john@example.com",
-		"nickname": "John Updated",
-		"profile": {
-			"date_of_birth": "1990-01-01",
-			"gender": "M",
-			"height": 175.5,
-			"weight": 70.0,
-			"daily_calorie_goal": 2200
-		}
-	},
-	"message": "Profile updated successfully"
+  "success": true,
+  "data": {
+    "id": 1,
+    "username": "johndoe",
+    "email": "john@example.com",
+    "nickname": "John Updated",
+    "profile": {
+      "date_of_birth": "1990-01-01",
+      "gender": "M",
+      "height": 175.5,
+      "weight": 70.0,
+      "daily_calorie_goal": 2200
+    }
+  },
+  "message": "Profile updated successfully"
 }
 ```
 
@@ -305,9 +313,9 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 
 **Query Parameters:**
 
--   `query` (required): Search term
--   `page` (optional): Page number (default: 1)
--   `page_size` (optional): Items per page (default: 20)
+- `query` (required): Search term
+- `page` (optional): Page number (default: 1)
+- `page_size` (optional): Items per page (default: 20)
 
 **Example:** `/foods/search/?query=apple&page=1&page_size=10`
 
@@ -315,37 +323,37 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 
 ```json
 {
-	"success": true,
-	"data": {
-		"foods": [
-			{
-				"id": 1102702,
-				"fdc_id": 1102702,
-				"name": "Dole - Apples, raw, with skin",
-				"brand": "Dole",
-				"data_type": "branded_food",
-				"publication_date": "2019-04-01",
-				"is_usda": true,
-				"calories_per_100g": 52.0,
-				"protein_per_100g": 0.3,
-				"fat_per_100g": 0.2,
-				"carbs_per_100g": 13.8,
-				"fiber_per_100g": 2.4,
-				"sugar_per_100g": 10.4,
-				"sodium_per_100g": 1.0,
-				"category": { "name": "USDA Food" },
-				"serving_size": 100,
-				"is_custom": false
-			}
-		],
-		"total_count": 1,
-		"page": 1,
-		"page_size": 10,
-		"total_pages": 1,
-		"source": "USDA",
-		"query": "apple"
-	},
-	"message": "Found 1 foods matching 'apple'"
+  "success": true,
+  "data": {
+    "foods": [
+      {
+        "id": 1102702,
+        "fdc_id": 1102702,
+        "name": "Dole - Apples, raw, with skin",
+        "brand": "Dole",
+        "data_type": "branded_food",
+        "publication_date": "2019-04-01",
+        "is_usda": true,
+        "calories_per_100g": 52.0,
+        "protein_per_100g": 0.3,
+        "fat_per_100g": 0.2,
+        "carbs_per_100g": 13.8,
+        "fiber_per_100g": 2.4,
+        "sugar_per_100g": 10.4,
+        "sodium_per_100g": 1.0,
+        "category": { "name": "USDA Food" },
+        "serving_size": 100,
+        "is_custom": false
+      }
+    ],
+    "total_count": 1,
+    "page": 1,
+    "page_size": 10,
+    "total_pages": 1,
+    "source": "USDA",
+    "query": "apple"
+  },
+  "message": "Found 1 foods matching 'apple'"
 }
 ```
 
@@ -353,42 +361,42 @@ Search for foods in the database. **Now uses USDA as primary source with local f
 
 ```json
 {
-	"success": true,
-	"data": {
-		"foods": [
-			{
-				"id": 1,
-				"name": "Apple",
-				"brand": null,
-				"calories_per_100g": 52.0,
-				"protein_per_100g": 0.3,
-				"fat_per_100g": 0.2,
-				"carbs_per_100g": 13.8,
-				"serving_size": 100.0,
-				"is_custom": false,
-				"is_verified": true,
-				"is_usda": false,
-				"category": { "name": "Fruits" }
-			}
-		],
-		"total_count": 1,
-		"page": 1,
-		"page_size": 10,
-		"total_pages": 1,
-		"source": "LOCAL",
-		"query": "apple"
-	},
-	"message": "Found 1 foods matching 'apple'"
+  "success": true,
+  "data": {
+    "foods": [
+      {
+        "id": 1,
+        "name": "Apple",
+        "brand": null,
+        "calories_per_100g": 52.0,
+        "protein_per_100g": 0.3,
+        "fat_per_100g": 0.2,
+        "carbs_per_100g": 13.8,
+        "serving_size": 100.0,
+        "is_custom": false,
+        "is_verified": true,
+        "is_usda": false,
+        "category": { "name": "Fruits" }
+      }
+    ],
+    "total_count": 1,
+    "page": 1,
+    "page_size": 10,
+    "total_pages": 1,
+    "source": "LOCAL",
+    "query": "apple"
+  },
+  "message": "Found 1 foods matching 'apple'"
 }
 ```
 
 **Notes:**
 
--   The search now prioritizes USDA FoodData Central database
--   If USDA is unavailable, falls back to local database
--   USDA results include `is_usda: true` and `fdc_id` fields
--   Food names are enhanced with brand information when available
--   Some USDA search results may have `calories_per_100g: 0` until detailed nutrition is fetched
+- The search now prioritizes USDA FoodData Central database
+- If USDA is unavailable, falls back to local database
+- USDA results include `is_usda: true` and `fdc_id` fields
+- Food names are enhanced with brand information when available
+- Some USDA search results may have `calories_per_100g: 0` until detailed nutrition is fetched
 
 ---
 
@@ -404,24 +412,24 @@ Get detailed information about a specific food.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1,
-		"name": "Apple",
-		"brand": null,
-		"calories_per_100g": 52.0,
-		"protein_per_100g": 0.3,
-		"fat_per_100g": 0.2,
-		"carbs_per_100g": 13.8,
-		"fiber_per_100g": 2.4,
-		"sugar_per_100g": 10.4,
-		"sodium_per_100g": 1.0,
-		"serving_size": 100.0,
-		"is_custom": false,
-		"is_verified": true,
-		"usda_fdc_id": "1102702",
-		"aliases": ["red apple", "green apple"]
-	}
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Apple",
+    "brand": null,
+    "calories_per_100g": 52.0,
+    "protein_per_100g": 0.3,
+    "fat_per_100g": 0.2,
+    "carbs_per_100g": 13.8,
+    "fiber_per_100g": 2.4,
+    "sugar_per_100g": 10.4,
+    "sodium_per_100g": 1.0,
+    "serving_size": 100.0,
+    "is_custom": false,
+    "is_verified": true,
+    "usda_fdc_id": "1102702",
+    "aliases": ["red apple", "green apple"]
+  }
 }
 ```
 
@@ -439,16 +447,16 @@ Create a custom food entry.
 
 ```json
 {
-	"name": "string (required)",
-	"brand": "string (optional)",
-	"calories_per_100g": "number (required)",
-	"protein_per_100g": "number (optional)",
-	"fat_per_100g": "number (optional)",
-	"carbs_per_100g": "number (optional)",
-	"fiber_per_100g": "number (optional)",
-	"sugar_per_100g": "number (optional)",
-	"sodium_per_100g": "number (optional)",
-	"serving_size": "number (required)"
+  "name": "string (required)",
+  "brand": "string (optional)",
+  "calories_per_100g": "number (required)",
+  "protein_per_100g": "number (optional)",
+  "fat_per_100g": "number (optional)",
+  "carbs_per_100g": "number (optional)",
+  "fiber_per_100g": "number (optional)",
+  "sugar_per_100g": "number (optional)",
+  "sodium_per_100g": "number (optional)",
+  "serving_size": "number (required)"
 }
 ```
 
@@ -456,16 +464,16 @@ Create a custom food entry.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 100,
-		"name": "My Custom Food",
-		"brand": "My Brand",
-		"calories_per_100g": 200.0,
-		"is_custom": true,
-		"is_verified": false
-	},
-	"message": "Custom food created successfully"
+  "success": true,
+  "data": {
+    "id": 100,
+    "name": "My Custom Food",
+    "brand": "My Brand",
+    "calories_per_100g": 200.0,
+    "is_custom": true,
+    "is_verified": false
+  },
+  "message": "Custom food created successfully"
 }
 ```
 
@@ -493,8 +501,8 @@ Update a food entry (only custom foods created by the user).
 
 **Errors:**
 
--   `403`: Cannot edit non-custom foods or foods created by other users
--   `404`: Food not found
+- `403`: Cannot edit non-custom foods or foods created by other users
+- `404`: Food not found
 
 ---
 
@@ -510,16 +518,16 @@ Delete a food entry (only custom foods created by the user).
 
 ```json
 {
-	"success": true,
-	"data": null,
-	"message": "Food deleted successfully"
+  "success": true,
+  "data": null,
+  "message": "Food deleted successfully"
 }
 ```
 
 **Errors:**
 
--   `403`: Cannot delete non-custom foods or foods created by other users
--   `404`: Food not found
+- `403`: Cannot delete non-custom foods or foods created by other users
+- `404`: Food not found
 
 ---
 
@@ -535,29 +543,29 @@ Search foods in the USDA FoodData Central database.
 
 **Query Parameters:**
 
--   `query` (required): Search term
--   `page` (optional): Page number (default: 1)
--   `page_size` (optional): Items per page (default: 20)
+- `query` (required): Search term
+- `page` (optional): Page number (default: 1)
+- `page_size` (optional): Items per page (default: 20)
 
 **Response (200 OK):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"foods": [
-			{
-				"fdc_id": "1102702",
-				"description": "Apples, raw, with skin",
-				"brand_owner": null,
-				"food_category": "Fruits and Fruit Juices",
-				"publication_date": "2019-04-01"
-			}
-		],
-		"total_hits": 150,
-		"page": 1,
-		"page_size": 20
-	}
+  "success": true,
+  "data": {
+    "foods": [
+      {
+        "fdc_id": "1102702",
+        "description": "Apples, raw, with skin",
+        "brand_owner": null,
+        "food_category": "Fruits and Fruit Juices",
+        "publication_date": "2019-04-01"
+      }
+    ],
+    "total_hits": 150,
+    "page": 1,
+    "page_size": 20
+  }
 }
 ```
 
@@ -575,51 +583,51 @@ Get detailed nutrition information for a USDA food. **Now returns data in Food i
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1102702,
-		"fdc_id": 1102702,
-		"name": "Apples, raw, with skin",
-		"brand": "Dole",
-		"data_type": "branded_food",
-		"publication_date": "2019-04-01",
-		"is_usda": true,
-		"calories_per_100g": 52.0,
-		"protein_per_100g": 0.26,
-		"fat_per_100g": 0.17,
-		"carbs_per_100g": 13.81,
-		"fiber_per_100g": 2.4,
-		"sugar_per_100g": 10.39,
-		"sodium_per_100g": 1.0,
-		"category": { "name": "USDA Food" },
-		"serving_size": 100,
-		"is_custom": false,
-		"is_verified": true,
-		"ingredients": "Apples",
-		"nutrients": [
-			{
-				"nutrient_id": 1008,
-				"nutrient_name": "Energy",
-				"unit_name": "kcal",
-				"value": 52.0
-			},
-			{
-				"nutrient_id": 1003,
-				"nutrient_name": "Protein",
-				"unit_name": "g",
-				"value": 0.26
-			}
-		]
-	},
-	"message": "Retrieved nutrition data for FDC ID 1102702"
+  "success": true,
+  "data": {
+    "id": 1102702,
+    "fdc_id": 1102702,
+    "name": "Apples, raw, with skin",
+    "brand": "Dole",
+    "data_type": "branded_food",
+    "publication_date": "2019-04-01",
+    "is_usda": true,
+    "calories_per_100g": 52.0,
+    "protein_per_100g": 0.26,
+    "fat_per_100g": 0.17,
+    "carbs_per_100g": 13.81,
+    "fiber_per_100g": 2.4,
+    "sugar_per_100g": 10.39,
+    "sodium_per_100g": 1.0,
+    "category": { "name": "USDA Food" },
+    "serving_size": 100,
+    "is_custom": false,
+    "is_verified": true,
+    "ingredients": "Apples",
+    "nutrients": [
+      {
+        "nutrient_id": 1008,
+        "nutrient_name": "Energy",
+        "unit_name": "kcal",
+        "value": 52.0
+      },
+      {
+        "nutrient_id": 1003,
+        "nutrient_name": "Protein",
+        "unit_name": "g",
+        "value": 0.26
+      }
+    ]
+  },
+  "message": "Retrieved nutrition data for FDC ID 1102702"
 }
 ```
 
 **Notes:**
 
--   Returns complete nutrition data formatted to match our Food interface
--   Includes both structured nutrition data and detailed nutrient breakdown
--   Can be used directly in frontend components without additional processing
+- Returns complete nutrition data formatted to match our Food interface
+- Includes both structured nutrition data and detailed nutrient breakdown
+- Can be used directly in frontend components without additional processing
 
 ---
 
@@ -635,8 +643,8 @@ Create a food entry from USDA data.
 
 ```json
 {
-	"fdc_id": "string (required)",
-	"custom_name": "string (optional)"
+  "fdc_id": "string (required)",
+  "custom_name": "string (optional)"
 }
 ```
 
@@ -644,15 +652,15 @@ Create a food entry from USDA data.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 101,
-		"name": "Apples, raw, with skin",
-		"usda_fdc_id": "1102702",
-		"calories_per_100g": 52.0,
-		"is_verified": true
-	},
-	"message": "Food created from USDA data successfully"
+  "success": true,
+  "data": {
+    "id": 101,
+    "name": "Apples, raw, with skin",
+    "usda_fdc_id": "1102702",
+    "calories_per_100g": 52.0,
+    "is_verified": true
+  },
+  "message": "Food created from USDA data successfully"
 }
 ```
 
@@ -668,24 +676,24 @@ Get the user's food search history.
 
 **Query Parameters:**
 
--   `limit` (optional): Number of recent searches (default: 10)
+- `limit` (optional): Number of recent searches (default: 10)
 
 **Response (200 OK):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"searches": [
-			{
-				"id": 1,
-				"search_query": "apple",
-				"search_type": "text",
-				"results_count": 5,
-				"created_at": "2024-01-15T10:30:00Z"
-			}
-		]
-	}
+  "success": true,
+  "data": {
+    "searches": [
+      {
+        "id": 1,
+        "search_query": "apple",
+        "search_type": "text",
+        "results_count": 5,
+        "created_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -705,18 +713,18 @@ Create a new meal entry.
 
 ```json
 {
-	"date": "YYYY-MM-DD (required)",
-	"meal_type": "breakfast|lunch|dinner|snack (required)",
-	"name": "string (optional)",
-	"notes": "string (optional)",
-	"foods": [
-		{
-			"food_id": "number (required, use -1 for USDA foods)",
-			"quantity": "number (required)",
-			"fdc_id": "number (optional, required when food_id is -1)",
-			"name": "string (optional, for USDA foods)"
-		}
-	]
+  "date": "YYYY-MM-DD (required)",
+  "meal_type": "breakfast|lunch|dinner|snack (required)",
+  "name": "string (optional)",
+  "notes": "string (optional)",
+  "foods": [
+    {
+      "food_id": "number (required, use -1 for USDA foods)",
+      "quantity": "number (required)",
+      "fdc_id": "number (optional, required when food_id is -1)",
+      "name": "string (optional, for USDA foods)"
+    }
+  ]
 }
 ```
 
@@ -732,57 +740,57 @@ Example with USDA food:
 
 ```json
 {
-	"date": "2024-01-15",
-	"meal_type": "breakfast",
-	"name": "Morning Meal",
-	"foods": [
-		{
-			"food_id": -1,
-			"quantity": 150,
-			"fdc_id": 171688,
-			"name": "Apples, raw"
-		},
-		{
-			"food_id": 5,
-			"quantity": 200
-		}
-	]
+  "date": "2024-01-15",
+  "meal_type": "breakfast",
+  "name": "Morning Meal",
+  "foods": [
+    {
+      "food_id": -1,
+      "quantity": 150,
+      "fdc_id": 171688,
+      "name": "Apples, raw"
+    },
+    {
+      "food_id": 5,
+      "quantity": 200
+    }
+  ]
 }
 ```
 
 The system will:
 
--   Check if a food with the given `fdc_id` already exists locally
--   If not, automatically fetch nutrition data from USDA and create a local Food record
--   Add the food to the meal with accurate nutritional calculations
+- Check if a food with the given `fdc_id` already exists locally
+- If not, automatically fetch nutrition data from USDA and create a local Food record
+- Add the food to the meal with accurate nutritional calculations
 
 **Response (201 Created):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1,
-		"date": "2024-01-15",
-		"meal_type": "breakfast",
-		"name": "Morning Meal",
-		"total_calories": 520.0,
-		"total_protein": 15.2,
-		"total_fat": 8.5,
-		"total_carbs": 85.3,
-		"foods": [
-			{
-				"id": 1,
-				"food": {
-					"id": 1,
-					"name": "Apple"
-				},
-				"quantity": 150.0,
-				"calories": 78.0
-			}
-		]
-	},
-	"message": "Meal created successfully"
+  "success": true,
+  "data": {
+    "id": 1,
+    "date": "2024-01-15",
+    "meal_type": "breakfast",
+    "name": "Morning Meal",
+    "total_calories": 520.0,
+    "total_protein": 15.2,
+    "total_fat": 8.5,
+    "total_carbs": 85.3,
+    "foods": [
+      {
+        "id": 1,
+        "food": {
+          "id": 1,
+          "name": "Apple"
+        },
+        "quantity": 150.0,
+        "calories": 78.0
+      }
+    ]
+  },
+  "message": "Meal created successfully"
 }
 ```
 
@@ -852,9 +860,9 @@ Delete a meal entry.
 
 ```json
 {
-	"success": true,
-	"data": null,
-	"message": "Meal deleted successfully"
+  "success": true,
+  "data": null,
+  "message": "Meal deleted successfully"
 }
 ```
 
@@ -870,51 +878,51 @@ Get meals for the authenticated user.
 
 **Query Parameters:**
 
--   `date` (optional): Filter by specific date (YYYY-MM-DD)
--   `meal_type` (optional): Filter by meal type
--   `page` (optional): Page number (default: 1)
--   `page_size` (optional): Items per page (default: 20)
+- `date` (optional): Filter by specific date (YYYY-MM-DD)
+- `meal_type` (optional): Filter by meal type
+- `page` (optional): Page number (default: 1)
+- `page_size` (optional): Items per page (default: 20)
 
 **Response (200 OK):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"meals": [
-			{
-				"id": 1,
-				"date": "2024-01-15T00:00:00Z",
-				"meal_type": "breakfast",
-				"name": "Morning Meal",
-				"total_calories": 520.0,
-				"total_protein": 15.2,
-				"total_fat": 8.5,
-				"total_carbs": 85.3,
-				"foods": [
-					{
-						"id": 1,
-						"food": {
-							"id": 1,
-							"name": "Apple"
-						},
-						"quantity": 150.0,
-						"calories": 78.0
-					}
-				],
-				"food_count": 1,
-				"created_at": "2024-01-15T08:30:00Z"
-			}
-		],
-		"pagination": {
-			"page": 1,
-			"page_size": 20,
-			"total_pages": 1,
-			"total_count": 10,
-			"has_next": false,
-			"has_previous": false
-		}
-	}
+  "success": true,
+  "data": {
+    "meals": [
+      {
+        "id": 1,
+        "date": "2024-01-15T00:00:00Z",
+        "meal_type": "breakfast",
+        "name": "Morning Meal",
+        "total_calories": 520.0,
+        "total_protein": 15.2,
+        "total_fat": 8.5,
+        "total_carbs": 85.3,
+        "foods": [
+          {
+            "id": 1,
+            "food": {
+              "id": 1,
+              "name": "Apple"
+            },
+            "quantity": 150.0,
+            "calories": 78.0
+          }
+        ],
+        "food_count": 1,
+        "created_at": "2024-01-15T08:30:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "page_size": 20,
+      "total_pages": 1,
+      "total_count": 10,
+      "has_next": false,
+      "has_previous": false
+    }
+  }
 }
 ```
 
@@ -930,7 +938,7 @@ Get the user's most recent meals.
 
 **Query Parameters:**
 
--   `limit` (optional): Number of recent meals (default: 10)
+- `limit` (optional): Number of recent meals (default: 10)
 
 **Response (200 OK):**
 
@@ -957,10 +965,10 @@ Add a food item to an existing meal.
 
 ```json
 {
-	"food_id": "number (required, use -1 for USDA foods)",
-	"quantity": "number (required)",
-	"fdc_id": "number (optional, required when food_id is -1)",
-	"name": "string (optional, for USDA foods)"
+  "food_id": "number (required, use -1 for USDA foods)",
+  "quantity": "number (required)",
+  "fdc_id": "number (optional, required when food_id is -1)",
+  "name": "string (optional, for USDA foods)"
 }
 ```
 
@@ -976,10 +984,10 @@ Example with USDA food:
 
 ```json
 {
-	"food_id": -1,
-	"quantity": 100,
-	"fdc_id": 171688,
-	"name": "Apples, raw"
+  "food_id": -1,
+  "quantity": 100,
+  "fdc_id": 171688,
+  "name": "Apples, raw"
 }
 ```
 
@@ -987,17 +995,17 @@ Example with USDA food:
 
 ```json
 {
-	"success": true,
-	"data": {
-		"meal_food_id": 5,
-		"food": {
-			"id": 2,
-			"name": "Banana"
-		},
-		"quantity": 120.0,
-		"calories": 107.0
-	},
-	"message": "Food added to meal successfully"
+  "success": true,
+  "data": {
+    "meal_food_id": 5,
+    "food": {
+      "id": 2,
+      "name": "Banana"
+    },
+    "quantity": 120.0,
+    "calories": 107.0
+  },
+  "message": "Food added to meal successfully"
 }
 ```
 
@@ -1015,7 +1023,7 @@ Update the quantity of a food item in a meal.
 
 ```json
 {
-	"quantity": "number (required)"
+  "quantity": "number (required)"
 }
 ```
 
@@ -1043,9 +1051,9 @@ Remove a food item from a meal.
 
 ```json
 {
-	"success": true,
-	"data": null,
-	"message": "Food removed from meal successfully"
+  "success": true,
+  "data": null,
+  "message": "Food removed from meal successfully"
 }
 ```
 
@@ -1082,13 +1090,13 @@ Create a meal plan for multiple days.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"meals_created": 21,
-		"start_date": "2024-01-15",
-		"end_date": "2024-01-21"
-	},
-	"message": "Meal plan created successfully"
+  "success": true,
+  "data": {
+    "meals_created": 21,
+    "start_date": "2024-01-15",
+    "end_date": "2024-01-21"
+  },
+  "message": "Meal plan created successfully"
 }
 ```
 
@@ -1106,34 +1114,34 @@ Get nutrition summary for a specific date.
 
 **Query Parameters:**
 
--   `date` (optional): Date in YYYY-MM-DD format (default: today)
+- `date` (optional): Date in YYYY-MM-DD format (default: today)
 
 **Response (200 OK):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"date": "2024-01-15",
-		"total_calories": 1850.0,
-		"total_protein": 85.5,
-		"total_fat": 65.2,
-		"total_carbs": 220.8,
-		"total_fiber": 28.5,
-		"goal_calories": 2000,
-		"goal_protein": 100,
-		"goal_fat": 70,
-		"goal_carbs": 250,
-		"meals": [
-			{
-				"meal_type": "breakfast",
-				"calories": 520.0,
-				"protein": 15.2,
-				"fat": 8.5,
-				"carbs": 85.3
-			}
-		]
-	}
+  "success": true,
+  "data": {
+    "date": "2024-01-15",
+    "total_calories": 1850.0,
+    "total_protein": 85.5,
+    "total_fat": 65.2,
+    "total_carbs": 220.8,
+    "total_fiber": 28.5,
+    "goal_calories": 2000,
+    "goal_protein": 100,
+    "goal_fat": 70,
+    "goal_carbs": 250,
+    "meals": [
+      {
+        "meal_type": "breakfast",
+        "calories": 520.0,
+        "protein": 15.2,
+        "fat": 8.5,
+        "carbs": 85.3
+      }
+    ]
+  }
 }
 ```
 
@@ -1149,33 +1157,33 @@ Get nutrition statistics over a time period.
 
 **Query Parameters:**
 
--   `start_date` (optional): Start date (YYYY-MM-DD)
--   `end_date` (optional): End date (YYYY-MM-DD)
--   `period` (optional): 'weekly' | 'monthly' (default: 'weekly')
+- `start_date` (optional): Start date (YYYY-MM-DD)
+- `end_date` (optional): End date (YYYY-MM-DD)
+- `period` (optional): 'weekly' | 'monthly' (default: 'weekly')
 
 **Response (200 OK):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"period": "weekly",
-		"start_date": "2024-01-01",
-		"end_date": "2024-01-07",
-		"average_calories": 1875.0,
-		"average_protein": 82.3,
-		"average_fat": 63.8,
-		"average_carbs": 215.5,
-		"daily_stats": [
-			{
-				"date": "2024-01-01",
-				"calories": 1850.0,
-				"protein": 85.5,
-				"fat": 65.2,
-				"carbs": 220.8
-			}
-		]
-	}
+  "success": true,
+  "data": {
+    "period": "weekly",
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-07",
+    "average_calories": 1875.0,
+    "average_protein": 82.3,
+    "average_fat": 63.8,
+    "average_carbs": 215.5,
+    "daily_stats": [
+      {
+        "date": "2024-01-01",
+        "calories": 1850.0,
+        "protein": 85.5,
+        "fat": 65.2,
+        "carbs": 220.8
+      }
+    ]
+  }
 }
 ```
 
@@ -1193,9 +1201,9 @@ Record a weight measurement.
 
 ```json
 {
-	"weight": "number (required)",
-	"date": "YYYY-MM-DD (optional, default: today)",
-	"notes": "string (optional)"
+  "weight": "number (required)",
+  "date": "YYYY-MM-DD (optional, default: today)",
+  "notes": "string (optional)"
 }
 ```
 
@@ -1203,14 +1211,14 @@ Record a weight measurement.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1,
-		"weight": 70.5,
-		"date": "2024-01-15",
-		"notes": "Morning weight"
-	},
-	"message": "Weight recorded successfully"
+  "success": true,
+  "data": {
+    "id": 1,
+    "weight": 70.5,
+    "date": "2024-01-15",
+    "notes": "Morning weight"
+  },
+  "message": "Weight recorded successfully"
 }
 ```
 
@@ -1228,22 +1236,22 @@ Upload a food image for analysis.
 
 **Request Body (multipart/form-data):**
 
--   `image`: Image file (JPG, PNG, max 10MB)
--   `notes` (optional): Description or notes about the image
+- `image`: Image file (JPG, PNG, max 10MB)
+- `notes` (optional): Description or notes about the image
 
 **Response (201 Created):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"id": 1,
-		"image_url": "/media/images/food_123.jpg",
-		"upload_date": "2024-01-15T10:30:00Z",
-		"notes": "Lunch plate",
-		"status": "uploaded"
-	},
-	"message": "Image uploaded successfully"
+  "success": true,
+  "data": {
+    "id": 1,
+    "image_url": "/media/images/food_123.jpg",
+    "upload_date": "2024-01-15T10:30:00Z",
+    "notes": "Lunch plate",
+    "status": "uploaded"
+  },
+  "message": "Image uploaded successfully"
 }
 ```
 
@@ -1261,8 +1269,8 @@ Analyze an uploaded image for food recognition.
 
 ```json
 {
-	"image_id": "number (required)",
-	"analysis_type": "full|quick (optional, default: full)"
+  "image_id": "number (required)",
+  "analysis_type": "full|quick (optional, default: full)"
 }
 ```
 
@@ -1270,13 +1278,13 @@ Analyze an uploaded image for food recognition.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"analysis_id": 1,
-		"status": "processing",
-		"estimated_completion": "2024-01-15T10:35:00Z"
-	},
-	"message": "Image analysis started"
+  "success": true,
+  "data": {
+    "analysis_id": 1,
+    "status": "processing",
+    "estimated_completion": "2024-01-15T10:35:00Z"
+  },
+  "message": "Image analysis started"
 }
 ```
 
@@ -1294,7 +1302,7 @@ Analyze an uploaded image for food recognition with real-time streaming results 
 
 ```json
 {
-	"image_id": "number (required)"
+  "image_id": "number (required)"
 }
 ```
 
@@ -1303,72 +1311,102 @@ Analyze an uploaded image for food recognition with real-time streaming results 
 The endpoint returns a streaming response with Server-Sent Events (SSE) format. Each event contains JSON data with the current analysis step:
 
 ```
-data: {"step": "stage1_start", "message": "Starting food identification..."}
+data: {"step": "start", "message": "开始分析图片", "image_id": 23}
 
-data: {"step": "stage1_progress", "message": "Analyzing image content..."}
+data: {"step": "food_detection", "message": "正在识别食物种类...", "progress": 25}
 
-data: {"step": "stage1_complete", "foods": [{"name": "Apple", "quantity": "1 medium", "confidence": 0.92}]}
+data: {"step": "food_detection_complete", "foods": [{"name": "Apple", "confidence": 0.92}], "progress": 50}
 
-data: {"step": "stage2_start", "message": "Fetching nutrition data..."}
+data: {"step": "portion_estimation", "message": "正在估算食物分量...", "progress": 75}
 
-data: {"step": "stage2_progress", "message": "Looking up USDA data for Apple..."}
-
-data: {"step": "stage2_complete", "message": "Analysis complete", "results": [{
-        "portions": [
+data: {"step": "complete", "success": true, "progress": 100,
+       "stage_1": {"food_types": [{"name": "猪排", "confidence": 0.95}]},
+       "stage_2": {"food_portions": [
                 {"name": "猪排", "estimated_grams": 300, "cooking_method": "煎"},
                 {"name": "青菜", "estimated_grams": 100, "cooking_method": "炒"}
-        ]
-}]}
+        ]}}
 ```
 
 **Streaming Event Types:**
 
--   `stage1_start`: Initial food identification phase begins
--   `stage1_progress`: Progress updates during food identification
--   `stage1_complete`: Food identification complete, includes initial food list
--   `stage2_start`: Nutrition data lookup phase begins
--   `stage2_progress`: Progress updates during nutrition lookup
--   `stage2_complete`: Complete analysis finished with full results
--   `error`: Analysis error occurred
+- `start`: Analysis begins, returns image_id
+- `food_detection`: Food identification phase in progress
+- `food_detection_complete`: Food identification complete, includes detected foods with confidence scores
+- `portion_estimation`: Portion estimation phase in progress
+- `complete`: Complete analysis finished with full results including stage_1 and stage_2 data
+- `error`: Analysis error occurred
+
+**Data Structure:**
+
+- `stage_1.food_types`: Array of detected foods with confidence scores
+- `stage_2.food_portions`: Array of food portions with estimated weights and cooking methods
+- Each portion contains: `name`, `estimated_grams`, `cooking_method` (optional)
+
+**Frontend Integration Notes:**
+
+Frontend applications should listen for food portion data in the `complete` event:
+
+```javascript
+if (data.step === "complete" && data.stage_2?.food_portions) {
+  // Handle food portions array
+  data.stage_2.food_portions.forEach((portion) => {
+    console.log(`${portion.name}: ${portion.estimated_grams}g`);
+    if (portion.cooking_method) {
+      console.log(`Cooking method: ${portion.cooking_method}`);
+    }
+  });
+}
+```
 
 **Headers:**
 
--   `Content-Type: text/event-stream; charset=utf-8`
--   `Cache-Control: no-cache, no-store, must-revalidate`
--   `Access-Control-Allow-Origin: http://localhost:3000`
+- `Content-Type: text/event-stream; charset=utf-8`
+- `Cache-Control: no-cache, no-store, must-revalidate`
+- `Access-Control-Allow-Origin: http://localhost:3000`
 
 **JavaScript Client Example:**
 
 ```javascript
 const eventSource = new EventSource("/api/v1/images/analyze-stream/", {
-	headers: {
-		Authorization: "Bearer " + token,
-	},
+  headers: {
+    Authorization: "Bearer " + token,
+  },
 });
 
 eventSource.onmessage = function (event) {
-	const data = JSON.parse(event.data);
-	console.log("Analysis step:", data.step, data.message);
+  const data = JSON.parse(event.data);
+  console.log("Analysis step:", data.step, data.message);
 
-	if (data.step === "stage2_complete") {
-		console.log("Final results:", data.results);
-		eventSource.close();
-	}
+  // Handle different analysis stages
+  switch (data.step) {
+    case "food_detection_complete":
+      console.log("Detected foods:", data.foods);
+      break;
+    case "complete":
+      console.log("Food types:", data.stage_1?.food_types);
+      console.log("Food portions:", data.stage_2?.food_portions);
+      eventSource.close();
+      break;
+    case "error":
+      console.error("Analysis error:", data.message);
+      eventSource.close();
+      break;
+  }
 };
 
 eventSource.onerror = function (event) {
-	console.error("Stream error:", event);
-	eventSource.close();
+  console.error("Stream error:", event);
+  eventSource.close();
 };
 ```
 
 **Notes:**
 
--   Uses Server-Sent Events (SSE) for real-time progress updates
--   Provides step-by-step analysis feedback to improve user experience
--   Automatically handles CORS for frontend integration
--   Stream closes automatically when analysis is complete or fails
--   Supports the same two-stage analysis as the regular analyze endpoint
+- Uses Server-Sent Events (SSE) for real-time progress updates
+- Provides step-by-step analysis feedback to improve user experience
+- Automatically handles CORS for frontend integration
+- Stream closes automatically when analysis is complete or fails
+- Supports the same two-stage analysis as the regular analyze endpoint
 
 ---
 
@@ -1384,33 +1422,33 @@ Get the food recognition results for an analyzed image.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"image_id": 1,
-		"status": "completed",
-		"analysis_date": "2024-01-15T10:35:00Z",
-		"recognized_foods": [
-			{
-				"id": 1,
-				"food_name": "Grilled Chicken Breast",
-				"confidence": 0.92,
-				"estimated_quantity": 150.0,
-				"estimated_calories": 248.0,
-				"bounding_box": {
-					"x": 100,
-					"y": 150,
-					"width": 200,
-					"height": 180
-				},
-				"usda_match": {
-					"fdc_id": "1234567",
-					"description": "Chicken, broilers or fryers, breast, meat only, cooked, roasted"
-				}
-			}
-		],
-		"total_estimated_calories": 520.0,
-		"analysis_notes": "High confidence detection of 3 food items"
-	}
+  "success": true,
+  "data": {
+    "image_id": 1,
+    "status": "completed",
+    "analysis_date": "2024-01-15T10:35:00Z",
+    "recognized_foods": [
+      {
+        "id": 1,
+        "food_name": "Grilled Chicken Breast",
+        "confidence": 0.92,
+        "estimated_quantity": 150.0,
+        "estimated_calories": 248.0,
+        "bounding_box": {
+          "x": 100,
+          "y": 150,
+          "width": 200,
+          "height": 180
+        },
+        "usda_match": {
+          "fdc_id": "1234567",
+          "description": "Chicken, broilers or fryers, breast, meat only, cooked, roasted"
+        }
+      }
+    ],
+    "total_estimated_calories": 520.0,
+    "analysis_notes": "High confidence detection of 3 food items"
+  }
 }
 ```
 
@@ -1428,9 +1466,9 @@ Delete an uploaded image and its analysis results.
 
 ```json
 {
-	"success": true,
-	"data": null,
-	"message": "Image deleted successfully"
+  "success": true,
+  "data": null,
+  "message": "Image deleted successfully"
 }
 ```
 
@@ -1446,31 +1484,31 @@ Get all images uploaded by the authenticated user.
 
 **Query Parameters:**
 
--   `page` (optional): Page number (default: 1)
--   `page_size` (optional): Items per page (default: 20)
--   `status` (optional): Filter by status ('uploaded', 'processing', 'completed', 'failed')
+- `page` (optional): Page number (default: 1)
+- `page_size` (optional): Items per page (default: 20)
+- `status` (optional): Filter by status ('uploaded', 'processing', 'completed', 'failed')
 
 **Response (200 OK):**
 
 ```json
 {
-	"success": true,
-	"data": {
-		"images": [
-			{
-				"id": 1,
-				"image_url": "/media/images/food_123.jpg",
-				"upload_date": "2024-01-15T10:30:00Z",
-				"status": "completed",
-				"recognized_foods_count": 3,
-				"total_estimated_calories": 520.0
-			}
-		],
-		"total_count": 1,
-		"page": 1,
-		"page_size": 20,
-		"total_pages": 1
-	}
+  "success": true,
+  "data": {
+    "images": [
+      {
+        "id": 1,
+        "image_url": "/media/images/food_123.jpg",
+        "upload_date": "2024-01-15T10:30:00Z",
+        "status": "completed",
+        "recognized_foods_count": 3,
+        "total_estimated_calories": 520.0
+      }
+    ],
+    "total_count": 1,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 1
+  }
 }
 ```
 
@@ -1488,15 +1526,15 @@ Confirm or correct the food recognition results.
 
 ```json
 {
-	"result_id": "number (required)",
-	"is_confirmed": "boolean (required)",
-	"corrections": [
-		{
-			"recognized_food_id": 1,
-			"actual_food_id": 5,
-			"actual_quantity": 180.0
-		}
-	]
+  "result_id": "number (required)",
+  "is_confirmed": "boolean (required)",
+  "corrections": [
+    {
+      "recognized_food_id": 1,
+      "actual_food_id": 5,
+      "actual_quantity": 180.0
+    }
+  ]
 }
 ```
 
@@ -1504,13 +1542,13 @@ Confirm or correct the food recognition results.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"result_id": 1,
-		"confirmed": true,
-		"corrections_applied": 1
-	},
-	"message": "Food recognition confirmed successfully"
+  "success": true,
+  "data": {
+    "result_id": 1,
+    "confirmed": true,
+    "corrections_applied": 1
+  },
+  "message": "Food recognition confirmed successfully"
 }
 ```
 
@@ -1528,10 +1566,10 @@ Create a meal entry from confirmed image recognition results.
 
 ```json
 {
-	"image_id": "number (required)",
-	"meal_type": "breakfast|lunch|dinner|snack (required)",
-	"date": "YYYY-MM-DD (optional, default: today)",
-	"meal_name": "string (optional)"
+  "image_id": "number (required)",
+  "meal_type": "breakfast|lunch|dinner|snack (required)",
+  "date": "YYYY-MM-DD (optional, default: today)",
+  "meal_name": "string (optional)"
 }
 ```
 
@@ -1539,14 +1577,14 @@ Create a meal entry from confirmed image recognition results.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"meal_id": 5,
-		"image_id": 1,
-		"foods_added": 3,
-		"total_calories": 520.0
-	},
-	"message": "Meal created from image successfully"
+  "success": true,
+  "data": {
+    "meal_id": 5,
+    "image_id": 1,
+    "foods_added": 3,
+    "total_calories": 520.0
+  },
+  "message": "Meal created from image successfully"
 }
 ```
 
@@ -1564,28 +1602,28 @@ Create a meal entry from confirmed image recognition results.
 
 ## HTTP Status Codes
 
--   `200 OK`: Request successful
--   `201 Created`: Resource created successfully
--   `400 Bad Request`: Invalid request data
--   `401 Unauthorized`: Authentication required or failed
--   `403 Forbidden`: Insufficient permissions
--   `404 Not Found`: Resource not found
--   `429 Too Many Requests`: Rate limit exceeded
--   `500 Internal Server Error`: Server error
+- `200 OK`: Request successful
+- `201 Created`: Resource created successfully
+- `400 Bad Request`: Invalid request data
+- `401 Unauthorized`: Authentication required or failed
+- `403 Forbidden`: Insufficient permissions
+- `404 Not Found`: Resource not found
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server error
 
 ## Pagination
 
 List endpoints support pagination with the following parameters:
 
--   `page`: Page number (default: 1)
--   `page_size`: Items per page (default: 20, max: 100)
+- `page`: Page number (default: 1)
+- `page_size`: Items per page (default: 20, max: 100)
 
 Pagination response includes:
 
--   `total_count`: Total number of items
--   `page`: Current page number
--   `page_size`: Items per page
--   `total_pages`: Total number of pages
+- `total_count`: Total number of items
+- `page`: Current page number
+- `page_size`: Items per page
+- `total_pages`: Total number of pages
 
 ## Testing
 
