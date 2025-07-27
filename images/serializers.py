@@ -121,3 +121,41 @@ class MealCreatedFromImageSerializer(serializers.Serializer):
     meal_id = serializers.IntegerField()
     total_calories = serializers.FloatField()
     foods_added = serializers.ListField(child=serializers.DictField())
+
+
+class BarcodeDetectionRequestSerializer(serializers.Serializer):
+    """Serializer for barcode detection requests"""
+
+    image_id = serializers.IntegerField()
+
+
+class BarcodeDetectionResultSerializer(serializers.Serializer):
+    """Serializer for barcode detection results"""
+
+    data = serializers.CharField()
+    type = serializers.CharField()
+    quality = serializers.IntegerField(required=False, allow_null=True)
+    orientation = serializers.CharField(required=False, allow_null=True)
+    rect = serializers.DictField()
+    polygon = serializers.ListField(child=serializers.ListField(child=serializers.IntegerField()), required=False)
+    is_food_barcode = serializers.BooleanField()
+    formatted_data = serializers.CharField()
+
+
+class USDABarcodeSearchSerializer(serializers.Serializer):
+    """Serializer for USDA barcode search requests"""
+
+    barcode = serializers.CharField(max_length=20)
+
+
+class USDABarcodeResultSerializer(serializers.Serializer):
+    """Serializer for USDA barcode search results"""
+
+    fdc_id = serializers.IntegerField()
+    description = serializers.CharField()
+    data_type = serializers.CharField()
+    brand_owner = serializers.CharField()
+    ingredients = serializers.CharField()
+    gtin_upc = serializers.CharField()
+    serving_size = serializers.CharField()
+    serving_size_unit = serializers.CharField()

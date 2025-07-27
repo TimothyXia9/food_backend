@@ -24,8 +24,14 @@ from .serializers import (
     ImageAnalysisRequestSerializer,
     ConfirmFoodRecognitionSerializer,
     CreateMealFromImageSerializer,
+    BarcodeDetectionRequestSerializer,
+    BarcodeDetectionResultSerializer,
+    USDABarcodeSearchSerializer,
+    USDABarcodeResultSerializer,
 )
 from .services import FoodImageAnalysisService
+from .barcode_service import BarcodeDetectionService
+from foods.services import FoodDataService
 
 logger = logging.getLogger(__name__)
 
@@ -932,5 +938,229 @@ def delete_image(request, image_id):
         logger.error(f"Failed to delete image: {str(e)}")
         return Response(
             {"success": False, "message": f"Failed to delete image: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def detect_barcodes(request):
+    """Detect barcodes in an uploaded image"""
+
+    serializer = BarcodeDetectionRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {"success": False, "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    image_id = serializer.validated_data["image_id"]
+
+    try:
+        # Get uploaded image
+        uploaded_image = UploadedImage.objects.get(id=image_id, user=request.user)
+        image_path = uploaded_image.file_path.path
+
+        # Initialize barcode detection service
+        barcode_service = BarcodeDetectionService()
+        
+        # Check if dependencies are available
+        if not barcode_service.dependencies_available:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Barcode detection dependencies are not installed. Please install libzbar0 and libzbar-dev system packages.",
+                    "data": {
+                        "image_id": image_id,
+                        "total_barcodes": 0,
+                        "food_barcodes": 0,
+                        "barcodes": [],
+                        "food_barcodes_only": [],
+                    },
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # Detect barcodes
+        detected_barcodes = barcode_service.detect_barcodes_from_path(image_path)
+
+        # Filter for food-related barcodes
+        food_barcodes = [
+            barcode for barcode in detected_barcodes 
+            if barcode.get('is_food_barcode', False)
+        ]
+
+        logger.info(f"Detected {len(detected_barcodes)} total barcodes, {len(food_barcodes)} food barcodes")
+
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "image_id": image_id,
+                    "total_barcodes": len(detected_barcodes),
+                    "food_barcodes": len(food_barcodes),
+                    "barcodes": detected_barcodes,
+                    "food_barcodes_only": food_barcodes,
+                },
+                "message": f"Found {len(detected_barcodes)} barcodes ({len(food_barcodes)} food-related)",
+            }
+        )
+
+    except UploadedImage.DoesNotExist:
+        return Response(
+            {"success": False, "message": "Image not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        logger.error(f"Barcode detection failed: {str(e)}")
+        return Response(
+            {"success": False, "message": f"Barcode detection failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def search_usda_by_barcode(request):
+    """Search USDA FoodData Central by barcode"""
+
+    serializer = USDABarcodeSearchSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {"success": False, "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    barcode = serializer.validated_data["barcode"]
+
+    try:
+        # Initialize food data service
+        food_service = FoodDataService()
+
+        # Search USDA by barcode
+        usda_results = food_service.search_usda_by_barcode(barcode)
+
+        if usda_results["success"]:
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "barcode": barcode,
+                        "usda_results": usda_results["foods"],
+                        "total_results": usda_results["total_results"],
+                    },
+                    "message": f"Found {usda_results['total_results']} USDA products for barcode {barcode}",
+                }
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "data": {
+                        "barcode": barcode,
+                        "usda_results": [],
+                        "total_results": 0,
+                    },
+                    "message": usda_results.get("message", "No USDA products found"),
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"USDA barcode search failed: {str(e)}")
+        return Response(
+            {"success": False, "message": f"USDA search failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def analyze_image_with_barcode(request):
+    """Combined image analysis: food recognition + barcode detection"""
+
+    serializer = ImageAnalysisRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {"success": False, "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    image_id = serializer.validated_data["image_id"]
+
+    try:
+        # Get uploaded image
+        uploaded_image = UploadedImage.objects.get(id=image_id, user=request.user)
+        image_path = uploaded_image.file_path.path
+
+        # Initialize services
+        barcode_service = BarcodeDetectionService()
+        food_service = FoodDataService()
+
+        # Check if barcode dependencies are available
+        if not barcode_service.dependencies_available:
+            logger.warning("Barcode detection dependencies not available, skipping barcode detection")
+            detected_barcodes = []
+            food_barcodes = []
+        else:
+            # 1. Detect barcodes
+            detected_barcodes = barcode_service.detect_barcodes_from_path(image_path)
+            food_barcodes = [
+                barcode for barcode in detected_barcodes 
+                if barcode.get('is_food_barcode', False)
+            ]
+
+        # 2. Search USDA for detected food barcodes
+        usda_barcode_results = []
+        for barcode in food_barcodes:
+            barcode_data = barcode.get('data', '')
+            usda_result = food_service.search_usda_by_barcode(barcode_data)
+            
+            if usda_result["success"]:
+                usda_barcode_results.extend([
+                    {
+                        **food,
+                        "source_barcode": barcode_data,
+                        "barcode_info": barcode,
+                    }
+                    for food in usda_result["foods"]
+                ])
+
+        # 3. Run traditional food analysis
+        food_analysis = analyze_food_image_two_stage(image_path)
+
+        # Update image status
+        uploaded_image.processing_status = "completed"
+        uploaded_image.save()
+
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "image_id": image_id,
+                    "status": "completed",
+                    "barcode_detection": {
+                        "total_barcodes": len(detected_barcodes),
+                        "food_barcodes": len(food_barcodes),
+                        "barcodes": detected_barcodes,
+                    },
+                    "usda_barcode_results": {
+                        "total_products": len(usda_barcode_results),
+                        "products": usda_barcode_results,
+                    },
+                    "food_analysis": food_analysis,
+                },
+                "message": f"Analysis complete: {len(food_barcodes)} barcodes, {len(usda_barcode_results)} USDA products found",
+            }
+        )
+
+    except UploadedImage.DoesNotExist:
+        return Response(
+            {"success": False, "message": "Image not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        logger.error(f"Combined image analysis failed: {str(e)}")
+        return Response(
+            {"success": False, "message": f"Analysis failed: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

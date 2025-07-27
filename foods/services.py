@@ -178,6 +178,57 @@ class FoodDataService:
             logger.error(f"USDA search failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    def search_usda_by_barcode(self, barcode: str) -> Dict[str, Any]:
+        """Search USDA FoodData Central database by barcode/UPC"""
+
+        try:
+            # USDA API supports UPC lookup through the search endpoint
+            results = self.usda_service.search_foods(barcode, page_size=10)
+
+            if results and results.get("foods"):
+                foods = results["foods"]
+                barcode_foods = []
+
+                for food in foods:
+                    # Filter for foods that are likely UPC matches
+                    if food.get("gtinUpc") == barcode or barcode in food.get("description", ""):
+                        barcode_foods.append(
+                            {
+                                "fdc_id": food.get("fdcId"),
+                                "description": food.get("description"),
+                                "data_type": food.get("dataType"),
+                                "brand_owner": food.get("brandOwner", ""),
+                                "ingredients": food.get("ingredients", ""),
+                                "gtin_upc": food.get("gtinUpc", ""),
+                                "serving_size": food.get("servingSize", ""),
+                                "serving_size_unit": food.get("servingSizeUnit", ""),
+                            }
+                        )
+
+                if barcode_foods:
+                    return {
+                        "success": True,
+                        "barcode": barcode,
+                        "total_results": len(barcode_foods),
+                        "foods": barcode_foods,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"No USDA products found for barcode: {barcode}",
+                        "barcode": barcode,
+                    }
+            else:
+                return {
+                    "success": False,
+                    "message": f"No results found for barcode: {barcode}",
+                    "barcode": barcode,
+                }
+
+        except Exception as e:
+            logger.error(f"USDA barcode search failed: {str(e)}")
+            return {"success": False, "error": str(e), "barcode": barcode}
+
     def get_usda_nutrition(self, fdc_id: int) -> Dict[str, Any]:
         """Get detailed nutrition information from USDA"""
 

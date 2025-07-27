@@ -14,4 +14,8 @@ urlpatterns = [
     # Food recognition management
     path("confirm/", views.confirm_food_recognition, name="confirm_food_recognition"),
     path("create-meal/", views.create_meal_from_image, name="create_meal_from_image"),
+    # Barcode detection endpoints
+    path("detect-barcodes/", views.detect_barcodes, name="detect_barcodes"),
+    path("search-usda-barcode/", views.search_usda_by_barcode, name="search_usda_by_barcode"),
+    path("analyze-with-barcode/", views.analyze_image_with_barcode, name="analyze_image_with_barcode"),
 ]
