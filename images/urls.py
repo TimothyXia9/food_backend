@@ -18,6 +18,4 @@ urlpatterns = [
     path("detect-barcodes/", views.detect_barcodes, name="detect_barcodes"),
     path("search-usda-barcode/", views.search_usda_by_barcode, name="search_usda_by_barcode"),
     path("analyze-with-barcode/", views.analyze_image_with_barcode, name="analyze_image_with_barcode"),
-    # Debug endpoints
-    path("debug-barcode/", views.debug_barcode_dependencies, name="debug_barcode_dependencies"),
 ]
