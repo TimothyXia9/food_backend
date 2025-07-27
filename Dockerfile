@@ -17,11 +17,9 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     pkg-config \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/* \
-    && ldconfig \
-    && echo "Checking libzbar installation:" \
-    && ls -la /usr/lib/*/libzbar* || echo "No libzbar found in /usr/lib" \
-    && find /usr -name "*libzbar*" 2>/dev/null || echo "libzbar search complete"
+    && ldconfig
 
 # Set work directory
 WORKDIR /app
