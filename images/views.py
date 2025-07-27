@@ -1164,3 +1164,83 @@ def analyze_image_with_barcode(request):
             {"success": False, "message": f"Analysis failed: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def debug_barcode_dependencies(request):
+    """Debug endpoint to check barcode detection dependencies"""
+    
+    debug_info = {
+        "system_info": {},
+        "python_dependencies": {},
+        "barcode_service": {},
+        "errors": []
+    }
+    
+    # Test system libraries
+    try:
+        import ctypes
+        ctypes.CDLL('libzbar.so.0')
+        debug_info["system_info"]["libzbar"] = "✓ Available"
+    except Exception as e:
+        debug_info["system_info"]["libzbar"] = f"✗ Error: {str(e)}"
+        debug_info["errors"].append(f"libzbar system library: {str(e)}")
+    
+    # Test Python dependencies
+    deps = ["cv2", "numpy", "PIL", "pyzbar"]
+    for dep in deps:
+        try:
+            if dep == "cv2":
+                import cv2
+                debug_info["python_dependencies"][dep] = f"✓ Version: {cv2.__version__}"
+            elif dep == "numpy":
+                import numpy as np
+                debug_info["python_dependencies"][dep] = f"✓ Version: {np.__version__}"
+            elif dep == "PIL":
+                from PIL import Image
+                debug_info["python_dependencies"][dep] = f"✓ Version: {Image.__version__}"
+            elif dep == "pyzbar":
+                from pyzbar import pyzbar
+                debug_info["python_dependencies"][dep] = "✓ Available"
+                
+                # Test pyzbar functionality
+                try:
+                    result = pyzbar.decode(b'')
+                    debug_info["python_dependencies"]["pyzbar_decode"] = f"✓ Decode test: {len(result)} results"
+                except Exception as e:
+                    debug_info["python_dependencies"]["pyzbar_decode"] = f"✗ Decode error: {str(e)}"
+                    debug_info["errors"].append(f"pyzbar decode test: {str(e)}")
+                    
+        except ImportError as e:
+            debug_info["python_dependencies"][dep] = f"✗ Import error: {str(e)}"
+            debug_info["errors"].append(f"Python dependency {dep}: {str(e)}")
+    
+    # Test barcode service
+    try:
+        from images.barcode_service import BarcodeDetectionService
+        service = BarcodeDetectionService()
+        debug_info["barcode_service"]["dependencies_available"] = service.dependencies_available
+        debug_info["barcode_service"]["supported_formats"] = service.supported_formats
+        
+        if service.dependencies_available:
+            debug_info["barcode_service"]["status"] = "✓ Ready"
+        else:
+            debug_info["barcode_service"]["status"] = "✗ Dependencies missing"
+            debug_info["errors"].append("BarcodeDetectionService reports dependencies unavailable")
+            
+    except Exception as e:
+        debug_info["barcode_service"]["error"] = f"✗ Service error: {str(e)}"
+        debug_info["errors"].append(f"BarcodeDetectionService: {str(e)}")
+    
+    # Summary
+    debug_info["summary"] = {
+        "ready_for_barcode_detection": len(debug_info["errors"]) == 0,
+        "total_errors": len(debug_info["errors"])
+    }
+    
+    return Response({
+        "success": True,
+        "debug_info": debug_info,
+        "message": "Dependency check complete" if len(debug_info["errors"]) == 0 else f"Found {len(debug_info['errors'])} issues"
+    })
