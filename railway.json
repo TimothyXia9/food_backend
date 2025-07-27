@@ -5,7 +5,6 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "python manage.py migrate && gunicorn --bind 0.0.0.0:$PORT --workers 3 calorie_tracker.wsgi:application",
     "healthcheckPath": "/",
     "healthcheckTimeout": 300
   }
