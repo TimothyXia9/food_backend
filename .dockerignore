@@ -70,7 +70,8 @@ htmlcov/
 docs/
 
 # Development files
-*.sh
+install_deps.sh
+deploy.sh
 testing/
 logs/
 
