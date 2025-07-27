@@ -64,10 +64,43 @@ def health_check(request):
     return JsonResponse(health_data)
 
 
+def barcode_debug(request):
+    """Quick barcode dependency debug"""
+    debug_info = {"status": "checking"}
+    
+    try:
+        # Test system library
+        import ctypes
+        ctypes.CDLL('libzbar.so.0')
+        debug_info["libzbar"] = "OK"
+    except Exception as e:
+        debug_info["libzbar"] = f"ERROR: {str(e)}"
+    
+    try:
+        # Test Python packages
+        import cv2, numpy, PIL, pyzbar
+        debug_info["python_packages"] = "OK"
+        debug_info["cv2_version"] = cv2.__version__
+        debug_info["numpy_version"] = numpy.__version__
+    except Exception as e:
+        debug_info["python_packages"] = f"ERROR: {str(e)}"
+    
+    try:
+        # Test barcode service
+        from images.barcode_service import BarcodeDetectionService
+        service = BarcodeDetectionService()
+        debug_info["barcode_service"] = service.dependencies_available
+    except Exception as e:
+        debug_info["barcode_service"] = f"ERROR: {str(e)}"
+    
+    return JsonResponse(debug_info)
+
+
 urlpatterns = [
     path("", health_check),  # Root health check
     path("health/", health_check),  # Alternative health check
     path("api/v1/health/", health_check),
+    path("barcode-debug/", barcode_debug),  # Quick debug
     path("admin/", admin.site.urls),
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/users/", include("accounts.urls")),

@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
 ENV RAILWAY_ENVIRONMENT=1
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
 
 # Install system dependencies including libzbar for barcode detection
 RUN apt-get update && apt-get install -y \
@@ -15,7 +16,12 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
     g++ \
-    && rm -rf /var/lib/apt/lists/*
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && ldconfig \
+    && echo "Checking libzbar installation:" \
+    && ls -la /usr/lib/*/libzbar* || echo "No libzbar found in /usr/lib" \
+    && find /usr -name "*libzbar*" 2>/dev/null || echo "libzbar search complete"
 
 # Set work directory
 WORKDIR /app
