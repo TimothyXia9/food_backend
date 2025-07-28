@@ -31,15 +31,14 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             f"[REQUEST] {request.method} {request.path} from {request.META.get('REMOTE_ADDR', 'unknown')}"
         )
 
+        # Get user info - try JWT authentication first for API requests
+        user_info = self.get_user_info(request)
+
         # Log request details
         log_data = {
             "method": request.method,
             "path": request.path,
-            "user": (
-                str(request.user)
-                if hasattr(request, "user") and request.user.is_authenticated
-                else "Anonymous"
-            ),
+            "user": user_info,
             "ip": self.get_client_ip(request),
             "user_agent": request.META.get("HTTP_USER_AGENT", ""),
             "content_type": request.META.get("CONTENT_TYPE", ""),
@@ -135,11 +134,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         log_data = {
             "method": request.method,
             "path": request.path,
-            "user": (
-                str(request.user)
-                if hasattr(request, "user") and request.user.is_authenticated
-                else "Anonymous"
-            ),
+            "user": self.get_user_info(request),
             "ip": self.get_client_ip(request),
             "exception_type": type(exception).__name__,
             "exception_message": str(exception),
@@ -159,6 +154,29 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         else:
             ip = request.META.get("REMOTE_ADDR")
         return ip
+
+    def get_user_info(self, request):
+        """Get user info, trying JWT authentication first for API requests"""
+        # First check if user is already authenticated via Django auth
+        if hasattr(request, "user") and request.user.is_authenticated:
+            return str(request.user)
+        
+        # For API requests, try to get user from JWT token
+        if request.path.startswith("/api/"):
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                try:
+                    from rest_framework_simplejwt.authentication import JWTAuthentication
+                    jwt_auth = JWTAuthentication()
+                    validated_token = jwt_auth.get_validated_token(token)
+                    user = jwt_auth.get_user(validated_token)
+                    return f"{user.username} (JWT)"
+                except Exception as e:
+                    # Token validation failed, but don't log the error details for security
+                    return f"Anonymous (Invalid JWT)"
+        
+        return "Anonymous"
 
 
 class PerformanceLoggingMiddleware(MiddlewareMixin):
@@ -181,21 +199,43 @@ class PerformanceLoggingMiddleware(MiddlewareMixin):
 
             # Log slow requests
             if response_time > self.slow_request_threshold:
+                # Use the same get_user_info method for consistency
+                user_info = self.get_user_info_from_request(request)
+                
                 log_data = {
                     "path": request.path,
                     "method": request.method,
                     "response_time_ms": round(response_time * 1000, 2),
                     "status_code": response.status_code,
-                    "user": (
-                        str(request.user)
-                        if hasattr(request, "user") and request.user.is_authenticated
-                        else "Anonymous"
-                    ),
+                    "user": user_info,
                 }
 
                 api_logger.warning(f"SLOW REQUEST: {json.dumps(log_data)}")
 
         return response
+
+    def get_user_info_from_request(self, request):
+        """Get user info, trying JWT authentication first for API requests"""
+        # First check if user is already authenticated via Django auth
+        if hasattr(request, "user") and request.user.is_authenticated:
+            return str(request.user)
+        
+        # For API requests, try to get user from JWT token
+        if request.path.startswith("/api/"):
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                try:
+                    from rest_framework_simplejwt.authentication import JWTAuthentication
+                    jwt_auth = JWTAuthentication()
+                    validated_token = jwt_auth.get_validated_token(token)
+                    user = jwt_auth.get_user(validated_token)
+                    return f"{user.username} (JWT)"
+                except Exception as e:
+                    # Token validation failed, but don't log the error details for security
+                    return f"Anonymous (Invalid JWT)"
+        
+        return "Anonymous"
 
 
 class SecurityLoggingMiddleware(MiddlewareMixin):
