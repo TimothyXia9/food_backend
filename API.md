@@ -2,6 +2,21 @@
 
 ## Changelog
 
+### 2025-07-28 - Barcode Recognition and Food Creation Integration
+
+- **New Barcode Detection Endpoints**: Added comprehensive barcode recognition capabilities using computer vision
+- **Open Food Facts Integration**: Added support for international food database queries via barcode
+- **Food Creation from Barcode**: New endpoint to automatically create Food objects from barcode scan results
+- **Combined Database Search**: Ability to query both USDA and Open Food Facts simultaneously
+- **Complete Workflow**: Full integration from barcode scan to Food object creation and display
+- **New Endpoints Added**:
+  - `POST /images/detect-barcodes/` - Computer vision barcode detection
+  - `POST /images/search-usda-barcode/` - USDA database barcode lookup
+  - `POST /images/search-openfoodfacts-barcode/` - Open Food Facts barcode lookup
+  - `POST /images/search-barcode-combined/` - Combined database search
+  - `POST /images/create-food-from-barcode/` - **Primary endpoint** for creating Food objects from barcodes
+  - `POST /images/analyze-with-barcode/` - Comprehensive image analysis with barcode detection
+
 ### 2025-07-26 - Image Analysis Streaming Format Update
 
 - **Corrected Data Structure**: Updated streaming response format for `/images/analyze-stream/`
@@ -1590,13 +1605,452 @@ Create a meal entry from confirmed image recognition results.
 
 ---
 
+### Detect Barcodes
+
+**POST** `/images/detect-barcodes/`
+
+Detect barcodes in an uploaded image using computer vision.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "image_id": "number (required)"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "image_id": 1,
+    "total_barcodes": 2,
+    "food_barcodes": 1,
+    "barcodes": [
+      {
+        "data": "1234567890123",
+        "type": "EAN13",
+        "quality": 95,
+        "orientation": "horizontal",
+        "rect": {
+          "left": 100,
+          "top": 150,
+          "width": 200,
+          "height": 50
+        },
+        "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+        "is_food_barcode": true,
+        "formatted_data": "1234567890123"
+      }
+    ],
+    "food_barcodes_only": [
+      {
+        "data": "1234567890123",
+        "type": "EAN13",
+        "quality": 95,
+        "orientation": "horizontal",
+        "rect": {
+          "left": 100,
+          "top": 150,
+          "width": 200,
+          "height": 50
+        },
+        "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+        "is_food_barcode": true,
+        "formatted_data": "1234567890123"
+      }
+    ]
+  },
+  "message": "Barcode detection completed"
+}
+```
+
+---
+
+### Search USDA by Barcode
+
+**POST** `/images/search-usda-barcode/`
+
+Search USDA FoodData Central database using a barcode/UPC code.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "barcode": "string (required) - Product barcode/UPC code"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "barcode": "1234567890123",
+    "usda_results": [
+      {
+        "fdc_id": 123456,
+        "description": "Product Name",
+        "data_type": "Branded",
+        "brand_owner": "Brand Name",
+        "ingredients": "Water, Sugar, Natural Flavors",
+        "gtin_upc": "1234567890123",
+        "serving_size": "250",
+        "serving_size_unit": "ml"
+      }
+    ],
+    "total_results": 1
+  },
+  "message": "USDA barcode search completed"
+}
+```
+
+---
+
+### Search Open Food Facts by Barcode
+
+**POST** `/images/search-openfoodfacts-barcode/`
+
+Search Open Food Facts database using a barcode for international product information.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "barcode": "string (required) - Product barcode/UPC code"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "barcode": "1234567890123",
+    "product": {
+      "barcode": "1234567890123",
+      "product_name": "Product Name",
+      "product_name_en": "Product Name (English)",
+      "brands": "Brand Name",
+      "categories": "Beverages, Soft drinks",
+      "ingredients_text": "Water, Sugar, Natural flavors",
+      "serving_size": "250ml",
+      "serving_quantity": "250",
+      "nutrition_grade": "a",
+      "image_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg",
+      "image_front_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg",
+      "nutrition_per_100g": {
+        "energy_kcal": 42,
+        "proteins": 0,
+        "carbohydrates": 10.5,
+        "sugars": 10.5,
+        "fat": 0,
+        "saturated_fat": 0,
+        "fiber": 0,
+        "sodium": 0.01
+      },
+      "data_source": "Open Food Facts"
+    }
+  },
+  "message": "Product found in Open Food Facts"
+}
+```
+
+---
+
+### Search Combined Barcode Databases
+
+**POST** `/images/search-barcode-combined/`
+
+Search both USDA and Open Food Facts databases simultaneously for comprehensive product information.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "barcode": "string (required) - Product barcode/UPC code"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "barcode": "1234567890123",
+    "usda_results": [
+      {
+        "fdc_id": 123456,
+        "description": "Product Name",
+        "data_type": "Branded",
+        "brand_owner": "Brand Name",
+        "ingredients": "Water, Sugar, Natural Flavors",
+        "gtin_upc": "1234567890123",
+        "serving_size": "250",
+        "serving_size_unit": "ml"
+      }
+    ],
+    "openfoodfacts_result": {
+      "barcode": "1234567890123",
+      "product_name": "Product Name",
+      "product_name_en": "Product Name (English)",
+      "brands": "Brand Name",
+      "categories": "Beverages, Soft drinks",
+      "ingredients_text": "Water, Sugar, Natural flavors",
+      "serving_size": "250ml",
+      "serving_quantity": "250",
+      "nutrition_grade": "a",
+      "image_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg",
+      "image_front_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg",
+      "nutrition_per_100g": {
+        "energy_kcal": 42,
+        "proteins": 0,
+        "carbohydrates": 10.5,
+        "sugars": 10.5,
+        "fat": 0,
+        "saturated_fat": 0,
+        "fiber": 0,
+        "sodium": 0.01
+      },
+      "data_source": "Open Food Facts"
+    },
+    "total_sources": 2
+  },
+  "message": "Found product information from 2 source(s)"
+}
+```
+
+---
+
+### Create Food from Barcode
+
+**POST** `/images/create-food-from-barcode/`
+
+Create a Food object in the database from barcode scan results. This endpoint automatically queries Open Food Facts (and USDA if available) to get product information and creates a local Food record.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "barcode": "string (required) - Product barcode/UPC code"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "food": {
+      "id": 123,
+      "name": "Coca-Cola Classic",
+      "brand": "Coca-Cola",
+      "barcode": "1234567890123",
+      "serving_size": 100,
+      "serving_unit": "g",
+      "calories_per_100g": 42,
+      "protein_per_100g": 0,
+      "fat_per_100g": 0,
+      "carbs_per_100g": 10.5,
+      "fiber_per_100g": 0,
+      "sugar_per_100g": 10.5,
+      "sodium_per_100g": 0.01,
+      "description": "Product scanned from barcode 1234567890123",
+      "ingredients": "Water, Sugar, Natural flavors, Caffeine",
+      "data_source": "Open Food Facts",
+      "nutrition_grade": "a",
+      "image_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg"
+    },
+    "message": "Created food from barcode: Coca-Cola Classic"
+  }
+}
+```
+
+**Response (404 Not Found):**
+
+```json
+{
+  "success": false,
+  "message": "No product found for barcode 1234567890123 in any database"
+}
+```
+
+---
+
+### Analyze Image with Barcode
+
+**POST** `/images/analyze-with-barcode/`
+
+Perform comprehensive image analysis including both food recognition and barcode detection with nutrition lookup.
+
+**Authentication:** Required
+
+**Request Body:**
+
+```json
+{
+  "image_id": "number (required)"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "image_id": 1,
+    "status": "completed",
+    "barcode_detection": {
+      "total_barcodes": 1,
+      "food_barcodes": 1,
+      "barcodes": [
+        {
+          "data": "1234567890123",
+          "type": "EAN13",
+          "quality": 95,
+          "orientation": "horizontal",
+          "rect": {
+            "left": 100,
+            "top": 150,
+            "width": 200,
+            "height": 50
+          },
+          "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+          "is_food_barcode": true,
+          "formatted_data": "1234567890123"
+        }
+      ]
+    },
+    "usda_barcode_results": {
+      "total_products": 1,
+      "products": [
+        {
+          "fdc_id": 123456,
+          "description": "Product Name",
+          "data_type": "Branded",
+          "brand_owner": "Brand Name",
+          "ingredients": "Water, Sugar, Natural Flavors",
+          "gtin_upc": "1234567890123",
+          "serving_size": "250",
+          "serving_size_unit": "ml",
+          "source_barcode": "1234567890123",
+          "barcode_info": {
+            "data": "1234567890123",
+            "type": "EAN13",
+            "quality": 95,
+            "orientation": "horizontal",
+            "rect": {
+              "left": 100,
+              "top": 150,
+              "width": 200,
+              "height": 50
+            },
+            "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+            "is_food_barcode": true,
+            "formatted_data": "1234567890123"
+          }
+        }
+      ]
+    },
+    "openfoodfacts_results": {
+      "total_products": 1,
+      "products": [
+        {
+          "barcode": "1234567890123",
+          "product_name": "Product Name",
+          "product_name_en": "Product Name (English)",
+          "brands": "Brand Name",
+          "categories": "Beverages, Soft drinks",
+          "ingredients_text": "Water, Sugar, Natural flavors",
+          "serving_size": "250ml",
+          "serving_quantity": "250",
+          "nutrition_grade": "a",
+          "image_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg",
+          "image_front_url": "https://images.openfoodfacts.org/images/products/123/456/789/front_en.jpg",
+          "nutrition_per_100g": {
+            "energy_kcal": 42,
+            "proteins": 0,
+            "carbohydrates": 10.5,
+            "sugars": 10.5,
+            "fat": 0,
+            "saturated_fat": 0,
+            "fiber": 0,
+            "sodium": 0.01
+          },
+          "data_source": "Open Food Facts",
+          "source_barcode": "1234567890123",
+          "barcode_info": {
+            "data": "1234567890123",
+            "type": "EAN13",
+            "quality": 95,
+            "orientation": "horizontal",
+            "rect": {
+              "left": 100,
+              "top": 150,
+              "width": 200,
+              "height": 50
+            },
+            "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+            "is_food_barcode": true,
+            "formatted_data": "1234567890123"
+          }
+        }
+      ]
+    },
+    "food_analysis": {
+      "success": true,
+      "stage_1": {
+        "food_types": [
+          {
+            "name": "Soda can",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "stage_2": {
+        "food_portions": [
+          {
+            "name": "Coca-Cola",
+            "estimated_grams": 330,
+            "cooking_method": "canned"
+          }
+        ]
+      }
+    }
+  },
+  "message": "Image analysis with barcode detection completed"
+}
+```
+
+---
+
 ## Rate Limits
 
-| Endpoint Type  | Rate Limit    | Window   |
-| -------------- | ------------- | -------- |
-| Authentication | 10 requests   | 1 minute |
-| Image Upload   | 20 requests   | 1 hour   |
-| Image Analysis | 10 requests   | 1 hour   |
+| Endpoint Type     | Rate Limit    | Window   |
+| ----------------- | ------------- | -------- |
+| Authentication    | 10 requests   | 1 minute |
+| Image Upload      | 20 requests   | 1 hour   |
+| Image Analysis    | 10 requests   | 1 hour   |
+| Barcode Detection | 15 requests   | 1 hour   |
+| Barcode Search    | 25 requests   | 1 hour   |
+| Food Creation     | 10 requests   | 1 hour   |
 | USDA API       | 100 requests  | 1 hour   |
 | General API    | 1000 requests | 1 hour   |
 
