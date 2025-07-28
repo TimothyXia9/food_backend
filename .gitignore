@@ -1,37 +1,39 @@
-# Dependencies
+# Node.js Dependencies
 node_modules/
 
-# Environment variables
-.env
-
-# IDE
-.vscode/
-
-# Build outputs
-build/
-dist/
-
-# Configuration
-eslint.config.js
-
-# Static files
-public/
-
-# Python virtual environment
+# Python Virtual Environment
 venv/
+
+# Environment Variables
+.env
+.env.production
+
+# Python Cache
+__pycache__/
 
 # Database
 db.sqlite3
 
-# Python cache
-__pycache__/
-
 # Logs
-
-
-*.jpg
-
 *.log
-.env.production
 
-/staticfiles
+# Build Outputs
+build/
+dist/
+staticfiles/
+
+# Static Assets 
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+
+# IDE/Editor Settings
+.vscode/
+
+# Configuration Files
+eslint.config.js
+
+# Public Static Folder 
+public/
