@@ -7,8 +7,9 @@ import os
 import json
 from PIL import Image
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 from django.core.files.storage import default_storage
 from django.utils import timezone
@@ -1109,21 +1110,37 @@ def analyze_image_with_barcode(request):
                 if barcode.get('is_food_barcode', False)
             ]
 
-        # 2. Search USDA for detected food barcodes
+        # 2. Search USDA and Open Food Facts for detected food barcodes
         usda_barcode_results = []
+        openfoodfacts_results = []
+        
         for barcode in food_barcodes:
             barcode_data = barcode.get('data', '')
-            usda_result = food_service.search_usda_by_barcode(barcode_data)
             
-            if usda_result["success"]:
-                usda_barcode_results.extend([
-                    {
-                        **food,
+            # Use combined search for both USDA and Open Food Facts
+            combined_result = food_service.search_barcode_combined(barcode_data)
+            
+            if combined_result.get("success") and combined_result.get("data"):
+                data = combined_result["data"]
+                
+                # Add USDA results
+                if data.get("usda_results"):
+                    usda_barcode_results.extend([
+                        {
+                            **food,
+                            "source_barcode": barcode_data,
+                            "barcode_info": barcode,
+                        }
+                        for food in data["usda_results"]
+                    ])
+                
+                # Add Open Food Facts result
+                if data.get("openfoodfacts_result"):
+                    openfoodfacts_results.append({
+                        **data["openfoodfacts_result"],
                         "source_barcode": barcode_data,
                         "barcode_info": barcode,
-                    }
-                    for food in usda_result["foods"]
-                ])
+                    })
 
         # 3. Run traditional food analysis
         food_analysis = analyze_food_image_two_stage(image_path)
@@ -1147,9 +1164,13 @@ def analyze_image_with_barcode(request):
                         "total_products": len(usda_barcode_results),
                         "products": usda_barcode_results,
                     },
+                    "openfoodfacts_results": {
+                        "total_products": len(openfoodfacts_results),
+                        "products": openfoodfacts_results,
+                    },
                     "food_analysis": food_analysis,
                 },
-                "message": f"Analysis complete: {len(food_barcodes)} barcodes, {len(usda_barcode_results)} USDA products found",
+                "message": f"Analysis complete: {len(food_barcodes)} barcodes, {len(usda_barcode_results)} USDA + {len(openfoodfacts_results)} Open Food Facts products found",
             }
         )
 
@@ -1163,6 +1184,155 @@ def analyze_image_with_barcode(request):
         return Response(
             {"success": False, "message": f"Analysis failed: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def search_openfoodfacts_by_barcode(request):
+    """Search Open Food Facts database by barcode"""
+
+    serializer = USDABarcodeSearchSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {"success": False, "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    barcode = serializer.validated_data["barcode"]
+
+    try:
+        # Initialize food data service
+        food_service = FoodDataService()
+
+        # Search Open Food Facts by barcode
+        off_result = food_service.search_openfoodfacts_by_barcode(barcode)
+
+        if off_result["success"]:
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "barcode": barcode,
+                        "product": off_result["product"],
+                    },
+                    "message": off_result["message"],
+                }
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "data": {
+                        "barcode": barcode,
+                        "product": None,
+                    },
+                    "message": off_result.get("message", "No product found in Open Food Facts"),
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"Open Food Facts barcode search failed: {str(e)}")
+        return Response(
+            {"success": False, "message": f"Open Food Facts search failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def search_barcode_combined(request):
+    """Search barcode in both USDA and Open Food Facts databases"""
+
+    serializer = USDABarcodeSearchSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {"success": False, "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    barcode = serializer.validated_data["barcode"]
+
+    try:
+        # Initialize food data service
+        food_service = FoodDataService()
+
+        # Search both databases
+        combined_result = food_service.search_barcode_combined(barcode)
+
+        if combined_result["success"]:
+            return Response(
+                {
+                    "success": True,
+                    "data": combined_result["data"],
+                    "message": combined_result["message"],
+                }
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "message": combined_result.get("message", "No products found"),
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"Combined barcode search failed: {str(e)}")
+        return Response(
+            {"success": False, "message": f"Combined search failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def create_food_from_barcode(request):
+    """
+    Create a Food object from barcode scan
+    
+    POST data:
+    - barcode: Product barcode/UPC code
+    """
+    try:
+        serializer = USDABarcodeSearchSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        barcode = serializer.validated_data["barcode"]
+        
+        # Import here to avoid circular imports
+        from foods.services import FoodDataService
+        
+        food_service = FoodDataService()
+        result = food_service.create_food_from_barcode(barcode, request.user.id)
+        
+        if result.get("success"):
+            return Response(
+                {
+                    "success": True,
+                    "food": result["food"],
+                    "message": result["message"]
+                },
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "message": result.get("message", "Failed to create food from barcode")
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+    except Exception as e:
+        logger.error(f"Error creating food from barcode: {str(e)}")
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 

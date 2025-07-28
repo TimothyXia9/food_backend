@@ -4,6 +4,7 @@ Handles food database operations and USDA integration
 """
 
 import logging
+import requests
 from typing import Dict, List, Any, Optional
 from django.db.models import Q
 from django.core.paginator import Paginator
@@ -191,7 +192,9 @@ class FoodDataService:
 
                 for food in foods:
                     # Filter for foods that are likely UPC matches
-                    if food.get("gtinUpc") == barcode or barcode in food.get("description", ""):
+                    if food.get("gtinUpc") == barcode or barcode in food.get(
+                        "description", ""
+                    ):
                         barcode_foods.append(
                             {
                                 "fdc_id": food.get("fdcId"),
@@ -431,3 +434,346 @@ class FoodDataService:
         except Exception as e:
             logger.error(f"Failed to get search history: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    def search_openfoodfacts_by_barcode(self, barcode: str) -> Dict[str, Any]:
+        """
+        Search Open Food Facts database by barcode
+
+        Args:
+            barcode: Product barcode/UPC code
+
+        Returns:
+            Dictionary with product information and nutrition data
+        """
+        try:
+            # Open Food Facts API endpoint
+            url = f"https://world.openfoodfacts.org/api/v3/product/{barcode}.json"
+
+            headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "CalorieTracker/1.0 (https://yourapp.com)"
+            }
+
+            logger.info(f"Searching Open Food Facts for barcode: {barcode}")
+            response = requests.get(url, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+
+                # Check if product was found (API v3 format)
+                if (data.get("status") in ["success", "success_with_warnings"] and 
+                    "product" in data and data["product"]):
+                    product = data["product"]
+
+                    # Extract nutrition information
+                    nutriments = product.get("nutriments", {})
+
+                    # Format nutrition data (per 100g when available)
+                    nutrition_per_100g = self._extract_openfoodfacts_nutrition(
+                        nutriments
+                    )
+
+                    # Extract basic product info (API v3 format)
+                    ecoscore_grade = product.get("ecoscore_grade", "")
+                    
+                    product_info = {
+                        "barcode": barcode,
+                        "product_name": product.get("product_name", ""),
+                        "product_name_en": product.get("product_name_en", ""),
+                        "brands": product.get("brands", ""),
+                        "categories": product.get("categories", ""),
+                        "ingredients_text": product.get("ingredients_text", ""),
+                        "serving_size": product.get("serving_size", ""),
+                        "serving_quantity": product.get("serving_quantity", ""),
+                        "nutrition_grade": product.get("nutriscore_grade", product.get("nutrition_grade_fr", "")),
+                        "ecoscore_grade": ecoscore_grade,
+                        "image_url": product.get("image_url", ""),
+                        "image_front_url": product.get("image_front_url", ""),
+                        "image_small_url": product.get("image_small_url", ""),
+                        "nutrition_per_100g": nutrition_per_100g,
+                        "data_source": "Open Food Facts",
+                    }
+
+                    return {
+                        "success": True,
+                        "product": product_info,
+                        "message": f"Found product: {product_info['product_name']}",
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"Product with barcode {barcode} not found in Open Food Facts database",
+                    }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Open Food Facts API error: {response.status_code}",
+                }
+
+        except requests.exceptions.Timeout:
+            logger.error(
+                f"Timeout when searching Open Food Facts for barcode: {barcode}"
+            )
+            return {
+                "success": False,
+                "message": "Request timeout when searching Open Food Facts",
+            }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error when searching Open Food Facts: {str(e)}")
+            return {"success": False, "message": f"Network error: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Error searching Open Food Facts: {str(e)}")
+            return {"success": False, "message": f"Search error: {str(e)}"}
+
+    def _extract_openfoodfacts_nutrition(
+        self, nutriments: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Extract and format nutrition data from Open Food Facts nutriments
+
+        Args:
+            nutriments: Raw nutriments data from Open Food Facts
+
+        Returns:
+            Formatted nutrition data per 100g
+        """
+        try:
+            # Map Open Food Facts nutrient names to standard names (API v3 format)
+            nutrition_mapping = {
+                "energy-kcal_100g": "calories",
+                "energy-kcal": "calories",  # Fallback for v3
+                "energy_100g": "energy_kj",
+                "proteins_100g": "protein",
+                "proteins": "protein",  # Fallback for v3
+                "carbohydrates_100g": "carbohydrates",
+                "carbohydrates": "carbohydrates",  # Fallback for v3
+                "sugars_100g": "sugars",
+                "sugars": "sugars",  # Fallback for v3
+                "fat_100g": "fat",
+                "fat": "fat",  # Fallback for v3
+                "saturated-fat_100g": "saturated_fat",
+                "saturated-fat": "saturated_fat",  # Fallback for v3
+                "fiber_100g": "fiber",
+                "fiber": "fiber",  # Fallback for v3
+                "sodium_100g": "sodium",
+                "sodium": "sodium",  # Fallback for v3
+                "salt_100g": "salt",
+                "salt": "salt",  # Fallback for v3
+            }
+
+            nutrition_data = {}
+
+            for off_key, standard_key in nutrition_mapping.items():
+                value = nutriments.get(off_key)
+                if value is not None:
+                    try:
+                        nutrition_data[standard_key] = float(value)
+                    except (ValueError, TypeError):
+                        pass
+
+            # Convert sodium to milligrams if available
+            if "sodium" in nutrition_data:
+                nutrition_data["sodium_mg"] = nutrition_data["sodium"] * 1000
+
+            # Add additional nutrients if available
+            additional_nutrients = [
+                "cholesterol_100g",
+                "vitamin-c_100g",
+                "calcium_100g",
+                "iron_100g",
+                "vitamin-a_100g",
+                "vitamin-d_100g",
+            ]
+
+            for nutrient in additional_nutrients:
+                value = nutriments.get(nutrient)
+                if value is not None:
+                    try:
+                        # Remove the _100g suffix for clean key names
+                        clean_key = nutrient.replace("_100g", "").replace("-", "_")
+                        nutrition_data[clean_key] = float(value)
+                    except (ValueError, TypeError):
+                        pass
+
+            return nutrition_data
+
+        except Exception as e:
+            logger.error(f"Error extracting Open Food Facts nutrition: {str(e)}")
+            return {}
+
+    def search_barcode_combined(self, barcode: str) -> Dict[str, Any]:
+        """
+        Search for barcode in both USDA and Open Food Facts databases
+
+        Args:
+            barcode: Product barcode/UPC code
+
+        Returns:
+            Combined results from both databases
+        """
+        try:
+            results = {
+                "barcode": barcode,
+                "usda_results": [],
+                "openfoodfacts_result": None,
+                "total_sources": 0,
+            }
+
+            # Search USDA database
+            if self.usda_service:
+                usda_result = self.search_usda_by_barcode(barcode)
+                if usda_result.get("success") and usda_result.get("foods"):
+                    results["usda_results"] = usda_result["foods"]
+                    results["total_sources"] += 1
+
+            # Search Open Food Facts
+            off_result = self.search_openfoodfacts_by_barcode(barcode)
+            if off_result.get("success") and off_result.get("product"):
+                results["openfoodfacts_result"] = off_result["product"]
+                results["total_sources"] += 1
+
+            return {
+                "success": True,
+                "data": results,
+                "message": f"Found product information from {results['total_sources']} source(s)",
+            }
+
+        except Exception as e:
+            logger.error(f"Error in combined barcode search: {str(e)}")
+            return {"success": False, "message": f"Combined search error: {str(e)}"}
+
+    def create_food_from_barcode(self, barcode: str, user_id: int) -> Dict[str, Any]:
+        """
+        Create a Food object from barcode scan results
+
+        Args:
+            barcode: Product barcode/UPC code
+            user_id: ID of the user creating the food
+
+        Returns:
+            Dictionary with created Food object information
+        """
+        try:
+            # First try Open Food Facts
+            off_result = self.search_openfoodfacts_by_barcode(barcode)
+
+            if off_result.get("success") and off_result.get("product"):
+                product = off_result["product"]
+                nutrition = product.get("nutrition_per_100g", {})
+
+                # Create Food object from Open Food Facts data (only use fields that exist in model)
+                food_data = {
+                    "name": product.get("product_name")
+                    or product.get("product_name_en")
+                    or f"Product {barcode}",
+                    "brand": (
+                        product.get("brands", "").split(",")[0].strip()
+                        if product.get("brands")
+                        else ""
+                    ),
+                    "serving_size": 100,  # Default to 100g
+                    "calories_per_100g": nutrition.get("calories", 0),
+                    "protein_per_100g": nutrition.get("protein", 0),
+                    "fat_per_100g": nutrition.get("fat", 0),
+                    "carbs_per_100g": nutrition.get("carbohydrates", 0),
+                    "fiber_per_100g": nutrition.get("fiber", 0),
+                    "sugar_per_100g": nutrition.get("sugars", 0),
+                    "sodium_per_100g": nutrition.get("sodium", 0),
+                    "barcode": barcode,
+                    "created_by_id": user_id,
+                    "is_verified": False,  # Mark as unverified since it's from external source
+                }
+
+                # Create the food
+                food = Food.objects.create(**food_data)
+
+                return {
+                    "success": True,
+                    "food": {
+                        "id": food.id,
+                        "name": food.name,
+                        "brand": food.brand or "",
+                        "barcode": food.barcode or "",
+                        "serving_size": float(food.serving_size),
+                        "serving_unit": "g",  # Default unit
+                        "calories_per_100g": float(food.calories_per_100g),
+                        "protein_per_100g": float(food.protein_per_100g or 0),
+                        "fat_per_100g": float(food.fat_per_100g or 0),
+                        "carbs_per_100g": float(food.carbs_per_100g or 0),
+                        "fiber_per_100g": float(food.fiber_per_100g or 0),
+                        "sugar_per_100g": float(food.sugar_per_100g or 0),
+                        "sodium_per_100g": float(food.sodium_per_100g or 0),
+                        "description": f"Product scanned from barcode {barcode}",
+                        "ingredients": product.get("ingredients_text", "")[:500],
+                        "data_source": "Open Food Facts",
+                        "nutrition_grade": product.get("nutrition_grade", ""),
+                        "image_url": product.get("image_front_url", ""),
+                    },
+                    "message": f"Created food from barcode: {food.name}",
+                }
+
+            # Fallback to USDA if available
+            elif self.usda_service:
+                usda_result = self.search_usda_by_barcode(barcode)
+                if usda_result.get("success") and usda_result.get("foods"):
+                    # Use first USDA result
+                    usda_food = usda_result["foods"][0]
+
+                    # Get detailed nutrition from USDA
+                    nutrition_result = self.get_usda_nutrition(usda_food["fdc_id"])
+                    nutrition_data = (
+                        nutrition_result.get("nutrition_data", {})
+                        if nutrition_result.get("success")
+                        else {}
+                    )
+
+                    food_data = {
+                        "name": usda_food.get("description", f"Product {barcode}"),
+                        "brand": usda_food.get("brand_owner", ""),
+                        "serving_size": 100,  # Default to 100g
+                        "calories_per_100g": nutrition_data.get("calories", 0),
+                        "protein_per_100g": nutrition_data.get("protein", 0),
+                        "fat_per_100g": nutrition_data.get("total_fat", 0),
+                        "carbs_per_100g": nutrition_data.get("carbohydrates", 0),
+                        "fiber_per_100g": nutrition_data.get("fiber", 0),
+                        "sugar_per_100g": nutrition_data.get("sugars", 0),
+                        "sodium_per_100g": nutrition_data.get("sodium", 0),
+                        "barcode": barcode,
+                        "created_by_id": user_id,
+                        "is_verified": True,  # USDA data is more reliable
+                    }
+
+                    food = Food.objects.create(**food_data)
+
+                    return {
+                        "success": True,
+                        "food": {
+                            "id": food.id,
+                            "name": food.name,
+                            "brand": food.brand or "",
+                            "barcode": food.barcode or "",
+                            "serving_size": float(food.serving_size),
+                            "serving_unit": "g",  # Default unit
+                            "calories_per_100g": float(food.calories_per_100g),
+                            "protein_per_100g": float(food.protein_per_100g or 0),
+                            "fat_per_100g": float(food.fat_per_100g or 0),
+                            "carbs_per_100g": float(food.carbs_per_100g or 0),
+                            "fiber_per_100g": float(food.fiber_per_100g or 0),
+                            "sugar_per_100g": float(food.sugar_per_100g or 0),
+                            "sodium_per_100g": float(food.sodium_per_100g or 0),
+                            "description": f"Product scanned from barcode {barcode}",
+                            "ingredients": usda_food.get("ingredients", "")[:500],
+                            "data_source": "USDA",
+                        },
+                        "message": f"Created food from USDA data: {food.name}",
+                    }
+
+            # No product found
+            return {
+                "success": False,
+                "message": f"No product found for barcode {barcode} in any database",
+            }
+
+        except Exception as e:
+            logger.error(f"Error creating food from barcode {barcode}: {str(e)}")
+            return {"success": False, "message": f"Error creating food: {str(e)}"}

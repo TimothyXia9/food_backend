@@ -246,6 +246,9 @@ if not DEBUG or "RAILWAY_ENVIRONMENT" in os.environ:
     if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
         MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+else:
+    # Development: Use default static files storage
+    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
