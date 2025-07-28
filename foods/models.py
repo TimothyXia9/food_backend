@@ -52,6 +52,14 @@ class Food(models.Model):
             models.Index(fields=["name"]),
             models.Index(fields=["created_by"]),
             models.Index(fields=["usda_fdc_id"]),
+            models.Index(fields=["barcode"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["barcode"],
+                condition=models.Q(barcode__isnull=False) & ~models.Q(barcode=""),
+                name="unique_barcode_when_not_null"
+            ),
         ]
 
     def __str__(self):

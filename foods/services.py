@@ -644,16 +644,46 @@ class FoodDataService:
 
     def create_food_from_barcode(self, barcode: str, user_id: int) -> Dict[str, Any]:
         """
-        Create a Food object from barcode scan results
+        Create a Food object from barcode scan results, or return existing food if barcode already exists
 
         Args:
             barcode: Product barcode/UPC code
             user_id: ID of the user creating the food
 
         Returns:
-            Dictionary with created Food object information
+            Dictionary with created or existing Food object information
         """
         try:
+            # Check if food with this barcode already exists
+            existing_food = Food.objects.filter(barcode=barcode).first()
+            if existing_food:
+                return {
+                    "success": True,
+                    "food": {
+                        "id": existing_food.id,
+                        "name": existing_food.name,
+                        "brand": existing_food.brand or "",
+                        "barcode": existing_food.barcode or "",
+                        "serving_size": float(existing_food.serving_size),
+                        "serving_unit": "g",
+                        "calories_per_100g": float(existing_food.calories_per_100g),
+                        "protein_per_100g": float(existing_food.protein_per_100g or 0),
+                        "fat_per_100g": float(existing_food.fat_per_100g or 0),
+                        "carbs_per_100g": float(existing_food.carbs_per_100g or 0),
+                        "fiber_per_100g": float(existing_food.fiber_per_100g or 0),
+                        "sugar_per_100g": float(existing_food.sugar_per_100g or 0),
+                        "sodium_per_100g": float(existing_food.sodium_per_100g or 0),
+                        "description": f"Product with barcode {barcode}",
+                        "ingredients": "",
+                        "data_source": "Existing Database",
+                        "nutrition_grade": "",
+                        "image_url": "",
+                    },
+                    "message": f"Found existing food with barcode {barcode}: {existing_food.name}",
+                    "is_existing": True,
+                }
+            
+            # No existing food found, proceed with creation
             # First try Open Food Facts
             off_result = self.search_openfoodfacts_by_barcode(barcode)
 
