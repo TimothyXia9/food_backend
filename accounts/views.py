@@ -7,13 +7,16 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 import logging
-from .models import User, UserProfile, UserActivityLog
+from .models import User, UserProfile, UserActivityLog, EmailVerificationToken, PasswordResetToken
 from .serializers import (
     UserRegistrationSerializer,
     UserWithProfileSerializer,
     UserProfileUpdateSerializer,
     CustomTokenObtainPairSerializer,
 )
+from .email_service import send_verification_email, send_password_reset_email
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 
 # Get logger for this module
 logger = logging.getLogger("accounts")
@@ -42,27 +45,31 @@ class UserRegistrationView(APIView):
                 f"User registered successfully: {user.username} (ID: {user.id})"
             )
 
-            # Generate tokens
-            refresh = RefreshToken.for_user(user)
-            access_token = refresh.access_token
-
+            # Create email verification token
+            verification_token = EmailVerificationToken.objects.create(user=user)
+            
+            # Send verification email
+            email_sent = send_verification_email(user, verification_token.token)
+            
             # Log activity
             UserActivityLog.objects.create(
                 user=user,
                 activity_type="user_registration",
+                activity_data={"email_sent": email_sent},
                 ip_address=request.META.get("REMOTE_ADDR"),
                 user_agent=request.META.get("HTTP_USER_AGENT"),
             )
 
             response_data = {
                 "user": UserWithProfileSerializer(user).data,
-                "token": str(access_token),
-                "refresh_token": str(refresh),
+                "message": "Registration successful. Please check your email to verify your account.",
+                "email_sent": email_sent
             }
 
             return Response(
                 create_response(
-                    data=response_data, message="User registered successfully"
+                    data=response_data, 
+                    message="User registered successfully. Email verification required."
                 ),
                 status=status.HTTP_201_CREATED,
             )
@@ -258,3 +265,276 @@ class UserProfileView(APIView):
             ),
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+class EmailVerificationView(APIView):
+    """Handle email verification"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        token = request.data.get('token')
+        if not token:
+            return Response(
+                create_response(
+                    success=False,
+                    error={
+                        "code": "MISSING_TOKEN",
+                        "message": "Verification token is required",
+                    }
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            verification_token = EmailVerificationToken.objects.get(
+                token=token, 
+                is_used=False
+            )
+            
+            if verification_token.is_expired():
+                return Response(
+                    create_response(
+                        success=False,
+                        error={
+                            "code": "TOKEN_EXPIRED",
+                            "message": "Verification token has expired",
+                        }
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Mark user as verified
+            user = verification_token.user
+            user.is_email_verified = True
+            user.save()
+            
+            # Mark token as used
+            verification_token.is_used = True
+            verification_token.save()
+            
+            # Generate JWT tokens for auto-login
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
+            
+            # Log activity
+            UserActivityLog.objects.create(
+                user=user,
+                activity_type="email_verification",
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT"),
+            )
+            
+            logger.info(f"Email verified for user: {user.username}")
+            
+            response_data = {
+                "user": UserWithProfileSerializer(user).data,
+                "token": str(access_token),
+                "refresh_token": str(refresh),
+            }
+            
+            return Response(
+                create_response(
+                    data=response_data,
+                    message="Email verified successfully"
+                ),
+                status=status.HTTP_200_OK,
+            )
+            
+        except EmailVerificationToken.DoesNotExist:
+            return Response(
+                create_response(
+                    success=False,
+                    error={
+                        "code": "INVALID_TOKEN",
+                        "message": "Invalid verification token",
+                    }
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class ResendVerificationEmailView(APIView):
+    """Resend verification email"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                create_response(
+                    success=False,
+                    error={
+                        "code": "MISSING_EMAIL",
+                        "message": "Email is required",
+                    }
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            user = User.objects.get(email=email)
+            
+            if user.is_email_verified:
+                return Response(
+                    create_response(
+                        success=False,
+                        error={
+                            "code": "ALREADY_VERIFIED",
+                            "message": "Email is already verified",
+                        }
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Create new verification token
+            verification_token = EmailVerificationToken.objects.create(user=user)
+            
+            # Send verification email
+            email_sent = send_verification_email(user, verification_token.token)
+            
+            logger.info(f"Verification email resent to: {email}")
+            
+            return Response(
+                create_response(
+                    data={"email_sent": email_sent},
+                    message="Verification email sent successfully"
+                ),
+                status=status.HTTP_200_OK,
+            )
+            
+        except User.DoesNotExist:
+            # Don't reveal if email exists or not for security
+            return Response(
+                create_response(
+                    message="If the email exists, a verification email has been sent"
+                ),
+                status=status.HTTP_200_OK,
+            )
+
+
+class PasswordResetRequestView(APIView):
+    """Request password reset"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                create_response(
+                    success=False,
+                    error={
+                        "code": "MISSING_EMAIL",
+                        "message": "Email is required",
+                    }
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            user = User.objects.get(email=email)
+            
+            # Create password reset token
+            reset_token = PasswordResetToken.objects.create(user=user)
+            
+            # Send password reset email
+            email_sent = send_password_reset_email(user, reset_token.token)
+            
+            # Log activity
+            UserActivityLog.objects.create(
+                user=user,
+                activity_type="password_reset_request",
+                activity_data={"email_sent": email_sent},
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT"),
+            )
+            
+            logger.info(f"Password reset requested for: {email}")
+            
+        except User.DoesNotExist:
+            # Don't reveal if email exists or not for security
+            logger.info(f"Password reset requested for non-existent email: {email}")
+        
+        # Always return success to avoid email enumeration
+        return Response(
+            create_response(
+                message="If the email exists, a password reset link has been sent"
+            ),
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """Confirm password reset with new password"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        token = request.data.get('token')
+        new_password = request.data.get('password')
+        
+        if not token or not new_password:
+            return Response(
+                create_response(
+                    success=False,
+                    error={
+                        "code": "MISSING_DATA",
+                        "message": "Token and new password are required",
+                    }
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            reset_token = PasswordResetToken.objects.get(
+                token=token,
+                is_used=False
+            )
+            
+            if reset_token.is_expired():
+                return Response(
+                    create_response(
+                        success=False,
+                        error={
+                            "code": "TOKEN_EXPIRED",
+                            "message": "Password reset token has expired",
+                        }
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Update user password
+            user = reset_token.user
+            user.password = make_password(new_password)
+            user.save()
+            
+            # Mark token as used
+            reset_token.is_used = True
+            reset_token.save()
+            
+            # Log activity
+            UserActivityLog.objects.create(
+                user=user,
+                activity_type="password_reset_confirm",
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT"),
+            )
+            
+            logger.info(f"Password reset confirmed for user: {user.username}")
+            
+            return Response(
+                create_response(
+                    message="Password reset successfully"
+                ),
+                status=status.HTTP_200_OK,
+            )
+            
+        except PasswordResetToken.DoesNotExist:
+            return Response(
+                create_response(
+                    success=False,
+                    error={
+                        "code": "INVALID_TOKEN",
+                        "message": "Invalid or expired password reset token",
+                    }
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )

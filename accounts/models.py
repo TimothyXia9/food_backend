@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+import uuid
+from datetime import timedelta
 
 
 class User(AbstractUser):
@@ -10,6 +12,7 @@ class User(AbstractUser):
     nickname = models.CharField(max_length=50, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(null=True, blank=True)
+    is_email_verified = models.BooleanField(default=False)
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = ["email"]
@@ -69,3 +72,63 @@ class UserActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.activity_type}"
+
+
+class EmailVerificationToken(models.Model):
+    """Email verification tokens for user registration"""
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_verification_tokens")
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["token"]),
+            models.Index(fields=["user", "is_used"]),
+        ]
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            from django.conf import settings
+            hours = getattr(settings, 'EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS', 24)
+            self.expires_at = timezone.now() + timedelta(hours=hours)
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    def __str__(self):
+        return f"Email verification for {self.user.username}"
+
+
+class PasswordResetToken(models.Model):
+    """Password reset tokens for user password recovery"""
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="password_reset_tokens")
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["token"]),
+            models.Index(fields=["user", "is_used"]),
+        ]
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            from django.conf import settings
+            hours = getattr(settings, 'PASSWORD_RESET_TOKEN_EXPIRE_HOURS', 1)
+            self.expires_at = timezone.now() + timedelta(hours=hours)
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    def __str__(self):
+        return f"Password reset for {self.user.username}"
