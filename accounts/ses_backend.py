@@ -11,7 +11,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-logger = logging.getLogger('accounts')
+logger = logging.getLogger("accounts")
 
 
 class SESEmailBackend(BaseEmailBackend):
@@ -28,12 +28,14 @@ class SESEmailBackend(BaseEmailBackend):
         """Initialize the SES client"""
         try:
             self.ses_client = boto3.client(
-                'ses',
+                "ses",
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_SES_REGION_NAME
+                region_name=settings.AWS_SES_REGION_NAME,
             )
-            logger.info(f"SES client initialized for region: {settings.AWS_SES_REGION_NAME}")
+            logger.info(
+                f"SES client initialized for region: {settings.AWS_SES_REGION_NAME}"
+            )
         except Exception as e:
             logger.error(f"Failed to initialize SES client: {e}")
             if not self.fail_silently:
@@ -65,88 +67,73 @@ class SESEmailBackend(BaseEmailBackend):
         try:
             # Prepare message data
             destination = {
-                'ToAddresses': message.to,
+                "ToAddresses": message.to,
             }
-            
+
             if message.cc:
-                destination['CcAddresses'] = message.cc
-            
+                destination["CcAddresses"] = message.cc
+
             if message.bcc:
-                destination['BccAddresses'] = message.bcc
+                destination["BccAddresses"] = message.bcc
 
             # Prepare message content
-            message_data = {
-                'Subject': {
-                    'Data': message.subject,
-                    'Charset': 'UTF-8'
-                }
-            }
+            message_data = {"Subject": {"Data": message.subject, "Charset": "UTF-8"}}
 
             # Handle both plain text and HTML content
-            if hasattr(message, 'alternatives') and message.alternatives:
+            if hasattr(message, "alternatives") and message.alternatives:
                 # Message has HTML alternative
                 html_content = None
                 for content, content_type in message.alternatives:
-                    if content_type == 'text/html':
+                    if content_type == "text/html":
                         html_content = content
                         break
-                
+
                 if html_content:
-                    message_data['Body'] = {
-                        'Text': {
-                            'Data': message.body,
-                            'Charset': 'UTF-8'
-                        },
-                        'Html': {
-                            'Data': html_content,
-                            'Charset': 'UTF-8'
-                        }
+                    message_data["Body"] = {
+                        "Text": {"Data": message.body, "Charset": "UTF-8"},
+                        "Html": {"Data": html_content, "Charset": "UTF-8"},
                     }
                 else:
-                    message_data['Body'] = {
-                        'Text': {
-                            'Data': message.body,
-                            'Charset': 'UTF-8'
-                        }
+                    message_data["Body"] = {
+                        "Text": {"Data": message.body, "Charset": "UTF-8"}
                     }
             else:
                 # Plain text only
-                message_data['Body'] = {
-                    'Text': {
-                        'Data': message.body,
-                        'Charset': 'UTF-8'
-                    }
+                message_data["Body"] = {
+                    "Text": {"Data": message.body, "Charset": "UTF-8"}
                 }
 
             # Send the email
             response = self.ses_client.send_email(
-                Source=message.from_email,
-                Destination=destination,
-                Message=message_data
+                Source=message.from_email, Destination=destination, Message=message_data
             )
 
-            message_id = response.get('MessageId')
+            message_id = response.get("MessageId")
             logger.info(f"Email sent successfully. SES Message ID: {message_id}")
             logger.info(f"Email sent to: {', '.join(message.to)}")
-            
+
             return True
 
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            error_message = e.response['Error']['Message']
-            
+            error_code = e.response["Error"]["Code"]
+            error_message = e.response["Error"]["Message"]
+
             logger.error(f"SES ClientError ({error_code}): {error_message}")
-            
+
             # Handle specific SES errors
-            if error_code == 'MessageRejected':
-                logger.error("Message was rejected by SES. Check your sending domain and email content.")
-            elif error_code == 'MailFromDomainNotVerifiedException':
-                logger.error("The domain used in the 'From' address is not verified with SES.")
-            elif error_code == 'ConfigurationSetDoesNotExistException':
+            if error_code == "MessageRejected":
+                logger.error(
+                    "Message was rejected by SES. Check your sending domain and email content."
+                )
+            elif error_code == "MailFromDomainNotVerifiedException":
+                logger.error(
+                    "The domain used in the 'From' address is not verified with SES."
+                )
+            elif error_code == "ConfigurationSetDoesNotExistException":
                 logger.error("The specified configuration set does not exist.")
-            elif error_code == 'SendingPausedException':
+            elif error_code == "SendingPausedException":
                 logger.error("Email sending is paused for your account.")
-            
+
             if not self.fail_silently:
                 raise
             return False
@@ -170,22 +157,22 @@ class SESEmailBackend(BaseEmailBackend):
         try:
             if not self.ses_client:
                 return {"error": "SES client not initialized"}
-            
+
             # Get sending quota
             quota_response = self.ses_client.get_send_quota()
-            
+
             # Get sending statistics
             stats_response = self.ses_client.get_send_statistics()
-            
+
             return {
                 "status": "connected",
-                "max_24_hour_send": quota_response.get('Max24HourSend', 0),
-                "max_send_rate": quota_response.get('MaxSendRate', 0),
-                "sent_last_24_hours": quota_response.get('SentLast24Hours', 0),
+                "max_24_hour_send": quota_response.get("Max24HourSend", 0),
+                "max_send_rate": quota_response.get("MaxSendRate", 0),
+                "sent_last_24_hours": quota_response.get("SentLast24Hours", 0),
                 "region": settings.AWS_SES_REGION_NAME,
-                "statistics_available": len(stats_response.get('SendDataPoints', []))
+                "statistics_available": len(stats_response.get("SendDataPoints", [])),
             }
-            
+
         except Exception as e:
             logger.error(f"SES connection test failed: {e}")
             return {"error": str(e)}
