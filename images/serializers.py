@@ -137,7 +137,9 @@ class BarcodeDetectionResultSerializer(serializers.Serializer):
     quality = serializers.IntegerField(required=False, allow_null=True)
     orientation = serializers.CharField(required=False, allow_null=True)
     rect = serializers.DictField()
-    polygon = serializers.ListField(child=serializers.ListField(child=serializers.IntegerField()), required=False)
+    polygon = serializers.ListField(
+        child=serializers.ListField(child=serializers.IntegerField()), required=False
+    )
     is_food_barcode = serializers.BooleanField()
     formatted_data = serializers.CharField()
 

@@ -16,9 +16,29 @@ urlpatterns = [
     path("create-meal/", views.create_meal_from_image, name="create_meal_from_image"),
     # Barcode detection endpoints
     path("detect-barcodes/", views.detect_barcodes, name="detect_barcodes"),
-    path("search-usda-barcode/", views.search_usda_by_barcode, name="search_usda_by_barcode"),
-    path("search-openfoodfacts-barcode/", views.search_openfoodfacts_by_barcode, name="search_openfoodfacts_by_barcode"),
-    path("search-barcode-combined/", views.search_barcode_combined, name="search_barcode_combined"),
-    path("create-food-from-barcode/", views.create_food_from_barcode, name="create_food_from_barcode"),
-    path("analyze-with-barcode/", views.analyze_image_with_barcode, name="analyze_image_with_barcode"),
+    path(
+        "search-usda-barcode/",
+        views.search_usda_by_barcode,
+        name="search_usda_by_barcode",
+    ),
+    path(
+        "search-openfoodfacts-barcode/",
+        views.search_openfoodfacts_by_barcode,
+        name="search_openfoodfacts_by_barcode",
+    ),
+    path(
+        "search-barcode-combined/",
+        views.search_barcode_combined,
+        name="search_barcode_combined",
+    ),
+    path(
+        "create-food-from-barcode/",
+        views.create_food_from_barcode,
+        name="create_food_from_barcode",
+    ),
+    path(
+        "analyze-with-barcode/",
+        views.analyze_image_with_barcode,
+        name="analyze_image_with_barcode",
+    ),
 ]

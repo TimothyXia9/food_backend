@@ -656,6 +656,11 @@ def create_custom_food(request):
                 if alias.strip():
                     FoodAlias.objects.create(food=food, alias=alias.strip())
 
+        # Create UserFood association for this user
+        from .models import UserFood
+
+        UserFood.objects.create(user=request.user, food=food)
+
         # Return the created food data
         food_data = {
             "id": food.id,
@@ -873,34 +878,39 @@ def delete_food(request, food_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_user_foods(request):
-    """Get user's custom foods"""
+    """Get user's foods (both custom foods they created and foods they've added)"""
 
     try:
         page = int(request.GET.get("page", 1))
         page_size = int(request.GET.get("page_size", 20))
 
-        # Get user's custom foods
-        foods_queryset = (
-            Food.objects.filter(created_by=request.user)
-            .select_related("created_by")
-            .order_by("-created_at")
+        # Import UserFood here to avoid circular imports
+        from .models import UserFood
+
+        # Get foods associated with this user through UserFood model
+        user_foods_queryset = (
+            UserFood.objects.filter(user=request.user)
+            .select_related("food", "food__created_by")
+            .order_by("-added_at")
         )
 
         # Pagination
-        total_count = foods_queryset.count()
+        total_count = user_foods_queryset.count()
         total_pages = (total_count + page_size - 1) // page_size
         start_index = (page - 1) * page_size
         end_index = start_index + page_size
-        foods = foods_queryset[start_index:end_index]
+        user_foods = user_foods_queryset[start_index:end_index]
 
         # Serialize the results
         foods_data = []
-        for food in foods:
+        for user_food in user_foods:
+            food = user_food.food
             foods_data.append(
                 {
                     "id": food.id,
                     "name": food.name,
                     "brand": food.brand,
+                    "barcode": food.barcode,
                     "calories_per_100g": float(food.calories_per_100g),
                     "protein_per_100g": (
                         float(food.protein_per_100g) if food.protein_per_100g else None
@@ -921,11 +931,14 @@ def get_user_foods(request):
                         float(food.sodium_per_100g) if food.sodium_per_100g else None
                     ),
                     "serving_size": float(food.serving_size),
-                    "is_custom": True,
+                    "is_custom": food.is_custom,
                     "is_verified": food.is_verified,
                     "is_usda": False,
-                    "category": {"name": "Custom Food"},
+                    "category": {
+                        "name": "Custom Food" if food.is_custom else "Standard Food"
+                    },
                     "created_at": food.created_at.isoformat(),
+                    "added_at": user_food.added_at.isoformat(),
                 }
             )
 
@@ -938,9 +951,9 @@ def get_user_foods(request):
                     "page": page,
                     "page_size": page_size,
                     "total_pages": total_pages,
-                    "source": "USER_CUSTOM",
+                    "source": "USER_FOODS",
                 },
-                "message": f"Found {total_count} custom foods",
+                "message": f"Found {total_count} foods in your list",
             }
         )
 

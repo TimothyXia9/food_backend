@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from decimal import Decimal
 
-from .models import Food, FoodAlias, FoodSearchLog
+from .models import Food, FoodAlias, FoodSearchLog, UserFood
 
 # Import USDA service
 from .usda_nutrition import USDANutritionAPI, format_nutrition_info
@@ -451,7 +451,7 @@ class FoodDataService:
 
             headers = {
                 "Content-Type": "application/json",
-                "User-Agent": "CalorieTracker/1.0 (https://yourapp.com)"
+                "User-Agent": "CalorieTracker/1.0 (https://yourapp.com)",
             }
 
             logger.info(f"Searching Open Food Facts for barcode: {barcode}")
@@ -461,8 +461,11 @@ class FoodDataService:
                 data = response.json()
 
                 # Check if product was found (API v3 format)
-                if (data.get("status") in ["success", "success_with_warnings"] and 
-                    "product" in data and data["product"]):
+                if (
+                    data.get("status") in ["success", "success_with_warnings"]
+                    and "product" in data
+                    and data["product"]
+                ):
                     product = data["product"]
 
                     # Extract nutrition information
@@ -475,7 +478,7 @@ class FoodDataService:
 
                     # Extract basic product info (API v3 format)
                     ecoscore_grade = product.get("ecoscore_grade", "")
-                    
+
                     product_info = {
                         "barcode": barcode,
                         "product_name": product.get("product_name", ""),
@@ -485,7 +488,9 @@ class FoodDataService:
                         "ingredients_text": product.get("ingredients_text", ""),
                         "serving_size": product.get("serving_size", ""),
                         "serving_quantity": product.get("serving_quantity", ""),
-                        "nutrition_grade": product.get("nutriscore_grade", product.get("nutrition_grade_fr", "")),
+                        "nutrition_grade": product.get(
+                            "nutriscore_grade", product.get("nutrition_grade_fr", "")
+                        ),
                         "ecoscore_grade": ecoscore_grade,
                         "image_url": product.get("image_url", ""),
                         "image_front_url": product.get("image_front_url", ""),
@@ -657,6 +662,11 @@ class FoodDataService:
             # Check if food with this barcode already exists
             existing_food = Food.objects.filter(barcode=barcode).first()
             if existing_food:
+                # Create or get the UserFood association for this user
+                user_food, created = UserFood.objects.get_or_create(
+                    user_id=user_id, food=existing_food
+                )
+
                 return {
                     "success": True,
                     "food": {
@@ -679,10 +689,15 @@ class FoodDataService:
                         "nutrition_grade": "",
                         "image_url": "",
                     },
-                    "message": f"Found existing food with barcode {barcode}: {existing_food.name}",
+                    "message": (
+                        f"Added existing food with barcode {barcode} to your list: {existing_food.name}"
+                        if created
+                        else f"Food with barcode {barcode} already in your list: {existing_food.name}"
+                    ),
                     "is_existing": True,
+                    "newly_added": created,
                 }
-            
+
             # No existing food found, proceed with creation
             # First try Open Food Facts
             off_result = self.search_openfoodfacts_by_barcode(barcode)
@@ -716,6 +731,9 @@ class FoodDataService:
 
                 # Create the food
                 food = Food.objects.create(**food_data)
+
+                # Create UserFood association for this user
+                UserFood.objects.create(user_id=user_id, food=food)
 
                 return {
                     "success": True,
@@ -774,6 +792,9 @@ class FoodDataService:
                     }
 
                     food = Food.objects.create(**food_data)
+
+                    # Create UserFood association for this user
+                    UserFood.objects.create(user_id=user_id, food=food)
 
                     return {
                         "success": True,

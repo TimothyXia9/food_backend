@@ -58,7 +58,7 @@ class Food(models.Model):
             models.UniqueConstraint(
                 fields=["barcode"],
                 condition=models.Q(barcode__isnull=False) & ~models.Q(barcode=""),
-                name="unique_barcode_when_not_null"
+                name="unique_barcode_when_not_null",
             ),
         ]
 
@@ -86,6 +86,34 @@ class FoodAlias(models.Model):
 
     def __str__(self):
         return f"{self.alias} -> {self.food.name}"
+
+
+class UserFood(models.Model):
+    """Tracks which foods users have added to their personal lists"""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_foods",
+    )
+    food = models.ForeignKey(
+        Food,
+        on_delete=models.CASCADE,
+        related_name="user_associations",
+    )
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["user", "food"]
+        ordering = ["-added_at"]
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["food"]),
+            models.Index(fields=["added_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.food.name}"
 
 
 class FoodSearchLog(models.Model):
