@@ -186,13 +186,30 @@ class MealListSerializer(serializers.Serializer):
 class NutritionStatsSerializer(serializers.Serializer):
     """Serializer for nutrition statistics"""
 
-    start_date = serializers.DateField()
-    end_date = serializers.DateField()
+    # Legacy date parameters for backward compatibility
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    
+    # New timezone-aware UTC datetime parameters
+    start_datetime_utc = serializers.DateTimeField(required=False)
+    end_datetime_utc = serializers.DateTimeField(required=False)
 
     def validate(self, data):
-        """Validate date range"""
-        if data["end_date"] < data["start_date"]:
-            raise serializers.ValidationError("end_date must be after start_date")
+        """Validate date/datetime parameters"""
+        # If using UTC datetime parameters, validate the range
+        if data.get("start_datetime_utc") and data.get("end_datetime_utc"):
+            if data["end_datetime_utc"] < data["start_datetime_utc"]:
+                raise serializers.ValidationError(
+                    "end_datetime_utc must be after start_datetime_utc"
+                )
+        # If using legacy date parameters, validate the range
+        elif data.get("start_date") and data.get("end_date"):
+            if data["end_date"] < data["start_date"]:
+                raise serializers.ValidationError("end_date must be after start_date")
+        else:
+            raise serializers.ValidationError(
+                "Either (start_date and end_date) or (start_datetime_utc and end_datetime_utc) must be provided"
+            )
         return data
 
 
