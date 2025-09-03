@@ -37,6 +37,7 @@ from .serializers import (
 from .services import FoodImageAnalysisService
 from .barcode_service import BarcodeDetectionService
 from foods.services import FoodDataService
+from foods.models import Food, UserFood
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,252 @@ def clean_json_response(content: str) -> str:
         cleaned_content = cleaned_content[:-3]
 
     return cleaned_content.strip()
+
+
+def get_default_nutrition_data() -> dict:
+    """
+    获取默认营养数据
+    """
+    return {
+        "calories_per_100g": 100,
+        "protein_per_100g": 10,
+        "fat_per_100g": 5,
+        "carbs_per_100g": 20,
+        "fiber_per_100g": 2,
+        "sugar_per_100g": 5,
+        "sodium_per_100g": 100,
+    }
+
+
+def create_default_nutrition_dict(
+    food_name: str, description: str = "Nutrition data not available"
+) -> dict:
+    """
+    创建包含默认营养数据的完整字典
+    """
+    nutrition_dict = {
+        "food_name": food_name,
+        "usda_description": description,
+        "fdc_id": None,
+    }
+    nutrition_dict.update(get_default_nutrition_data())
+    return nutrition_dict
+
+
+def process_stage1_foods_response(
+    stage1_data: dict, enhance_with_usda: bool = True
+) -> list:
+    """
+    Process Stage 1 OpenAI response and convert to standardized format
+
+    Args:
+        stage1_data: Raw JSON response from OpenAI
+        enhance_with_usda: Whether to enhance with USDA search terms (ignored, kept for compatibility)
+
+    Returns:
+        List of standardized food items with bilingual support
+    """
+    if "foods" in stage1_data and isinstance(stage1_data["foods"], list):
+        # Convert to backward compatible format while preserving new data
+        processed_foods = []
+        for food in stage1_data["foods"]:
+            # Use English name directly for USDA search if available, fallback to Chinese name
+            chinese_name = food.get("name_chinese", food.get("name", "未知食物"))
+            english_name = food.get("name_english", "")
+            usda_search_term = english_name if english_name else chinese_name
+
+            food_item = {
+                # Backward compatibility - use Chinese name as primary name
+                "name": chinese_name,
+                "confidence": food.get("confidence", 0.8),
+                # New bilingual fields
+                "name_chinese": chinese_name,
+                "name_english": english_name,
+                "usda_search_term": usda_search_term,
+                "category": food.get("category", "other"),
+            }
+            processed_foods.append(food_item)
+        return processed_foods
+    else:
+        # 如果JSON格式不正确，尝试解析为简单列表
+        food_names = [
+            item.get("name", item.get("name_chinese", "未知食物"))
+            for item in stage1_data.get("foods", [])
+        ]
+        return [
+            {
+                "name": name,
+                "confidence": 0.8,
+                "name_chinese": name,
+                "name_english": "",
+                "usda_search_term": name,
+                "category": "other",
+            }
+            for name in food_names[:5]
+        ]
+
+
+def update_food_nutrition(food_obj: Food, nutrition_data: dict) -> None:
+    """
+    使用营养数据更新Food对象的营养字段
+    """
+    defaults = get_default_nutrition_data()
+
+    food_obj.calories_per_100g = nutrition_data.get(
+        "calories_per_100g", defaults["calories_per_100g"]
+    )
+    food_obj.protein_per_100g = nutrition_data.get(
+        "protein_per_100g", defaults["protein_per_100g"]
+    )
+    food_obj.fat_per_100g = nutrition_data.get("fat_per_100g", defaults["fat_per_100g"])
+    food_obj.carbs_per_100g = nutrition_data.get(
+        "carbs_per_100g", defaults["carbs_per_100g"]
+    )
+    food_obj.fiber_per_100g = nutrition_data.get(
+        "fiber_per_100g", defaults["fiber_per_100g"]
+    )
+    food_obj.sugar_per_100g = nutrition_data.get(
+        "sugar_per_100g", defaults["sugar_per_100g"]
+    )
+    food_obj.sodium_per_100g = nutrition_data.get(
+        "sodium_per_100g", defaults["sodium_per_100g"]
+    )
+
+
+def get_food_nutrition_kwargs(nutrition_data: dict) -> dict:
+    """
+    从营养数据字典获取Food模型创建时需要的营养字段kwargs
+    """
+    defaults = get_default_nutrition_data()
+    return {
+        "calories_per_100g": nutrition_data.get(
+            "calories_per_100g", defaults["calories_per_100g"]
+        ),
+        "protein_per_100g": nutrition_data.get(
+            "protein_per_100g", defaults["protein_per_100g"]
+        ),
+        "fat_per_100g": nutrition_data.get("fat_per_100g", defaults["fat_per_100g"]),
+        "carbs_per_100g": nutrition_data.get(
+            "carbs_per_100g", defaults["carbs_per_100g"]
+        ),
+        "fiber_per_100g": nutrition_data.get(
+            "fiber_per_100g", defaults["fiber_per_100g"]
+        ),
+        "sugar_per_100g": nutrition_data.get(
+            "sugar_per_100g", defaults["sugar_per_100g"]
+        ),
+        "sodium_per_100g": nutrition_data.get(
+            "sodium_per_100g", defaults["sodium_per_100g"]
+        ),
+    }
+
+
+def create_user_food_from_recognition(user_id: int, nutrition_data: dict) -> dict:
+    """
+    从图像识别结果创建用户自定义食物
+
+    Args:
+        user_id: 用户ID
+        nutrition_data: 营养数据字典，包含食物名称和营养成分
+
+    Returns:
+        dict: 创建结果，包含食物ID和状态
+    """
+    try:
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+
+        user = User.objects.get(id=user_id)
+        food_name = nutrition_data.get("food_name", "Unknown Food")
+
+        # 检查是否已存在相同名称的食物（由同一用户创建）
+        existing_food = Food.objects.filter(
+            name__iexact=food_name, created_by=user
+        ).first()
+
+        if existing_food:
+            # 如果已存在，更新营养数据（使用最新的识别结果）
+            update_food_nutrition(existing_food, nutrition_data)
+
+            # 更新USDA信息
+            if nutrition_data.get("fdc_id"):
+                existing_food.usda_fdc_id = str(nutrition_data.get("fdc_id"))
+
+            existing_food.save()
+
+            # 确保在用户食物库中
+            user_food, created = UserFood.objects.get_or_create(
+                user=user, food=existing_food
+            )
+
+            return {
+                "success": True,
+                "food_id": existing_food.id,
+                "is_new": False,
+                "message": f"Updated existing food: {food_name}",
+                "food_data": {
+                    "id": existing_food.id,
+                    "name": existing_food.name,
+                    "calories_per_100g": float(existing_food.calories_per_100g),
+                    "protein_per_100g": float(existing_food.protein_per_100g or 0),
+                    "fat_per_100g": float(existing_food.fat_per_100g or 0),
+                    "carbs_per_100g": float(existing_food.carbs_per_100g or 0),
+                    "fiber_per_100g": float(existing_food.fiber_per_100g or 0),
+                    "sugar_per_100g": float(existing_food.sugar_per_100g or 0),
+                    "sodium_per_100g": float(existing_food.sodium_per_100g or 0),
+                    "is_custom": True,
+                    "usda_fdc_id": existing_food.usda_fdc_id,
+                },
+            }
+        else:
+            # 创建新的用户食物
+            nutrition_kwargs = get_food_nutrition_kwargs(nutrition_data)
+            new_food = Food.objects.create(
+                name=food_name,
+                serving_size=100,  # 默认100g
+                created_by=user,
+                is_verified=False,
+                usda_fdc_id=(
+                    str(nutrition_data.get("fdc_id"))
+                    if nutrition_data.get("fdc_id")
+                    else None
+                ),
+                **nutrition_kwargs,
+            )
+
+            # 添加到用户食物库
+            UserFood.objects.create(user=user, food=new_food)
+
+            return {
+                "success": True,
+                "food_id": new_food.id,
+                "is_new": True,
+                "message": f"Created new food: {food_name}",
+                "food_data": {
+                    "id": new_food.id,
+                    "name": new_food.name,
+                    "calories_per_100g": float(new_food.calories_per_100g),
+                    "protein_per_100g": float(new_food.protein_per_100g or 0),
+                    "fat_per_100g": float(new_food.fat_per_100g or 0),
+                    "carbs_per_100g": float(new_food.carbs_per_100g or 0),
+                    "fiber_per_100g": float(new_food.fiber_per_100g or 0),
+                    "sugar_per_100g": float(new_food.sugar_per_100g or 0),
+                    "sodium_per_100g": float(new_food.sodium_per_100g or 0),
+                    "is_custom": True,
+                    "usda_fdc_id": new_food.usda_fdc_id,
+                },
+            }
+
+    except Exception as e:
+        logger.error(f"Error creating user food from recognition: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "food_id": None,
+            "is_new": False,
+            "message": f"Failed to create food: {str(e)}",
+        }
 
 
 @api_view(["POST"])
@@ -141,18 +388,13 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
 
         service = get_openai_service()
 
+        # Import prompts management
+        from .prompts import FoodAnalysisPrompts
+
         # 第一阶段：识别食物种类
         logger.info(f"Stage 1: Identifying food types in image: {image_path}")
 
-        stage1_prompt = """请识别这张图片中的所有食物种类，以JSON格式返回结果。返回格式如下：
-{
-	"foods": [
-		{"name": "苹果", "confidence": 0.95},
-		{"name": "香蕉", "confidence": 0.88},
-		{"name": "面包", "confidence": 0.92}
-	]
-}
-只返回JSON，不要添加其他说明文字。confidence值表示识别的置信度(0-1之间)。"""
+        stage1_prompt = FoodAnalysisPrompts.get_food_identification_prompt()
 
         # 构造第一阶段消息
         stage1_messages = [
@@ -201,28 +443,36 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
 
                 # 尝试解析JSON
                 stage1_data = json.loads(cleaned_content)
-                if "foods" in stage1_data and isinstance(stage1_data["foods"], list):
-                    stage1_result["food_types"] = stage1_data["foods"]
-                else:
-                    # 如果JSON格式不正确，尝试解析为简单列表
-                    food_names = [
-                        item.get("name", "未知食物")
-                        for item in stage1_data.get("foods", [])
-                    ]
-                    stage1_result["food_types"] = [
-                        {"name": name, "confidence": 0.8} for name in food_names[:5]
-                    ]
+                stage1_result["food_types"] = process_stage1_foods_response(
+                    stage1_data, enhance_with_usda=True
+                )
             except json.JSONDecodeError:
                 # 如果JSON解析失败，使用默认值
                 logger.warning(f"Failed to parse Stage 1 JSON response: {content}")
                 stage1_result["food_types"] = [
-                    {"name": "未识别食物", "confidence": 0.5}
+                    {
+                        "name": "未识别食物",
+                        "confidence": 0.5,
+                        "name_chinese": "未识别食物",
+                        "name_english": "unidentified food",
+                        "usda_search_term": "unidentified food",
+                        "category": "other",
+                    }
                 ]
         else:
             logger.error(
                 f"Stage 1 OpenAI API error: {response.status_code} - {response.text}"
             )
-            stage1_result["food_types"] = [{"name": "未识别食物", "confidence": 0.5}]
+            stage1_result["food_types"] = [
+                {
+                    "name": "未识别食物",
+                    "confidence": 0.5,
+                    "name_chinese": "未识别食物",
+                    "name_english": "unidentified food",
+                    "usda_search_term": "unidentified food",
+                    "category": "other",
+                }
+            ]
 
         # 第二阶段：估算食物分量
         logger.info(
@@ -237,17 +487,9 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
             }
 
         # 构造食物列表用于第二阶段
-        food_list = [food["name"] for food in stage1_result["food_types"]]
-        food_names_str = "、".join(food_list)
-
-        stage2_prompt = f"""基于图片中识别到的食物：{food_names_str}，请估算每种食物的大致分量(克数)。以JSON格式返回：
-{{
-	"portions": [
-		{{"name": "米饭", "estimated_grams": 150, "cooking_method": "蒸"}},
-		{{"name": "鸡胸肉", "estimated_grams": 120, "cooking_method": "煎"}}
-	]
-}}
-请根据图片中食物的实际大小和常见分量进行估算。只返回JSON，不要添加其他说明文字。"""
+        stage2_prompt = FoodAnalysisPrompts.get_portion_estimation_prompt(
+            stage1_result["food_types"]
+        )
 
         # 构造第二阶段消息
         stage2_messages = [
@@ -326,7 +568,123 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
                 for food in stage1_result["food_types"]
             ]
 
-        return {"success": True, "stage_1": stage1_result, "stage_2": stage2_result}
+        # Stage 3: Get USDA nutrition data for identified foods
+        stage3_result = {"nutrition_data": []}
+
+        try:
+            from foods.usda_nutrition import USDANutritionAPI
+
+            usda_service = USDANutritionAPI()
+
+            for portion in stage2_result["food_portions"]:
+                food_name = portion.get("name", "")
+                if food_name:
+                    # Find corresponding food from stage1 for better search terms
+                    usda_search_term = food_name  # fallback
+                    for food_type in stage1_result["food_types"]:
+                        if (
+                            food_type.get("name") == food_name
+                            or food_type.get("name_chinese") == food_name
+                        ):
+                            usda_search_term = food_type.get(
+                                "usda_search_term", food_name
+                            )
+                            break
+
+                    # Search USDA for nutrition data using optimized search term
+                    logger.info(
+                        f"Searching USDA for '{food_name}' using term: '{usda_search_term}'"
+                    )
+                    usda_search_result = usda_service.search_foods(
+                        usda_search_term, page_size=3
+                    )
+
+                    if usda_search_result and usda_search_result.get("foods"):
+                        # Get the first (most relevant) result
+                        first_food = usda_search_result["foods"][0]
+
+                        # Get detailed nutrition data
+                        nutrition_data = usda_service.get_food_details(
+                            first_food.get("fdcId")
+                        )
+
+                        if nutrition_data:
+                            # Extract key nutrition facts
+                            nutrients = nutrition_data.get("foodNutrients", [])
+                            nutrition_info = {
+                                "food_name": food_name,
+                                "usda_description": first_food.get("description", ""),
+                                "fdc_id": first_food.get("fdcId"),
+                                "calories_per_100g": 100,  # Default fallback
+                                "protein_per_100g": 10,
+                                "fat_per_100g": 5,
+                                "carbs_per_100g": 20,
+                                "fiber_per_100g": 2,
+                                "sugar_per_100g": 5,
+                                "sodium_per_100g": 100,
+                            }
+
+                            # Map USDA nutrient data
+                            for nutrient in nutrients:
+                                nutrient_name = (
+                                    nutrient.get("nutrient", {}).get("name", "").lower()
+                                )
+                                amount = nutrient.get("amount", 0)
+
+                                if "energy" in nutrient_name and amount > 0:
+                                    nutrition_info["calories_per_100g"] = round(
+                                        amount, 1
+                                    )
+                                elif "protein" in nutrient_name and amount > 0:
+                                    nutrition_info["protein_per_100g"] = round(
+                                        amount, 1
+                                    )
+                                elif "total lipid" in nutrient_name and amount > 0:
+                                    nutrition_info["fat_per_100g"] = round(amount, 1)
+                                elif (
+                                    "carbohydrate" in nutrient_name
+                                    and "by difference" in nutrient_name
+                                    and amount > 0
+                                ):
+                                    nutrition_info["carbs_per_100g"] = round(amount, 1)
+                                elif "fiber" in nutrient_name and amount > 0:
+                                    nutrition_info["fiber_per_100g"] = round(amount, 1)
+                                elif "sugars" in nutrient_name and amount > 0:
+                                    nutrition_info["sugar_per_100g"] = round(amount, 1)
+                                elif "sodium" in nutrient_name and amount > 0:
+                                    nutrition_info["sodium_per_100g"] = round(amount, 1)
+
+                            stage3_result["nutrition_data"].append(nutrition_info)
+                        else:
+                            # Add default nutrition data if USDA lookup fails
+                            stage3_result["nutrition_data"].append(
+                                create_default_nutrition_dict(
+                                    food_name, "Nutrition data not available"
+                                )
+                            )
+                    else:
+                        # Add default nutrition data if USDA search fails
+                        stage3_result["nutrition_data"].append(
+                            create_default_nutrition_dict(
+                                food_name, "USDA search failed"
+                            )
+                        )
+        except Exception as e:
+            logger.warning(f"USDA nutrition lookup failed: {str(e)}")
+            # Add default nutrition data for all foods if USDA service fails
+            for portion in stage2_result["food_portions"]:
+                stage3_result["nutrition_data"].append(
+                    create_default_nutrition_dict(
+                        portion.get("name", "Unknown"), "USDA service unavailable"
+                    )
+                )
+
+        return {
+            "success": True,
+            "stage_1": stage1_result,
+            "stage_2": stage2_result,
+            "stage_3": stage3_result,
+        }
 
     except Exception as e:
         logger.error(f"Error in two-stage food analysis: {str(e)}")
@@ -335,6 +693,7 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
             "error": str(e),
             "stage_1": {"food_types": []},
             "stage_2": {"food_portions": []},
+            "stage_3": {"nutrition_data": []},
         }
 
 
@@ -367,6 +726,7 @@ def analyze_food_image_streaming(image_path: str, image_id: int):
             return
 
         from calorie_tracker.openai_service import get_openai_service
+        from .prompts import FoodAnalysisPrompts
         import base64
         import requests
 
@@ -383,15 +743,7 @@ def analyze_food_image_streaming(image_path: str, image_id: int):
         logger.info(f"Stage 1: Identifying food types in image: {image_path}")
         yield f"data: {json.dumps({'step': 'food_detection', 'message': '正在识别食物种类...', 'progress': 25})}\n\n"
 
-        stage1_prompt = """请识别这张图片中的所有食物种类，以JSON格式返回结果。返回格式如下：
-{
-	"foods": [
-		{"name": "苹果", "confidence": 0.95},
-		{"name": "香蕉", "confidence": 0.88},
-		{"name": "面包", "confidence": 0.92}
-	]
-}
-只返回JSON，不要添加其他说明文字。confidence值表示识别的置信度(0-1之间)。"""
+        stage1_prompt = FoodAnalysisPrompts.get_streaming_food_identification_prompt()
 
         # 构造第一阶段消息
         stage1_messages = [
@@ -440,22 +792,21 @@ def analyze_food_image_streaming(image_path: str, image_id: int):
 
                 # 尝试解析JSON
                 stage1_data = json.loads(cleaned_content)
-                if "foods" in stage1_data and isinstance(stage1_data["foods"], list):
-                    stage1_result["food_types"] = stage1_data["foods"]
-                else:
-                    # 如果JSON格式不正确，尝试解析为简单列表
-                    food_names = [
-                        item.get("name", "未知食物")
-                        for item in stage1_data.get("foods", [])
-                    ]
-                    stage1_result["food_types"] = [
-                        {"name": name, "confidence": 0.8} for name in food_names[:5]
-                    ]
+                stage1_result["food_types"] = process_stage1_foods_response(
+                    stage1_data, enhance_with_usda=True
+                )
             except json.JSONDecodeError:
                 # 如果JSON解析失败，使用默认值
                 logger.warning(f"Failed to parse Stage 1 JSON response: {content}")
                 stage1_result["food_types"] = [
-                    {"name": "未识别食物", "confidence": 0.5}
+                    {
+                        "name": "未识别食物",
+                        "confidence": 0.5,
+                        "name_chinese": "未识别食物",
+                        "name_english": "unidentified food",
+                        "usda_search_term": "unidentified food",
+                        "category": "other",
+                    }
                 ]
 
             # 发送第一阶段结果
@@ -1296,6 +1647,76 @@ def search_barcode_combined(request):
         logger.error(f"Combined barcode search failed: {str(e)}")
         return Response(
             {"success": False, "message": f"Combined search failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_user_foods_from_recognition(request):
+    """
+    Create user foods from image recognition results
+
+    POST data:
+    - nutrition_data: List of nutrition data dictionaries from recognition
+    """
+    try:
+        nutrition_data_list = request.data.get("nutrition_data", [])
+
+        if not nutrition_data_list:
+            return Response(
+                {"success": False, "message": "No nutrition data provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created_foods = []
+        updated_foods = []
+        errors = []
+
+        for nutrition_data in nutrition_data_list:
+            result = create_user_food_from_recognition(request.user.id, nutrition_data)
+
+            if result["success"]:
+                if result["is_new"]:
+                    created_foods.append(result["food_data"])
+                else:
+                    updated_foods.append(result["food_data"])
+            else:
+                errors.append(
+                    {
+                        "food_name": nutrition_data.get("food_name", "Unknown"),
+                        "error": result.get("error", "Unknown error"),
+                    }
+                )
+
+        # Log the activity
+        logger.info(
+            f"User {request.user.id} created/updated foods from recognition: "
+            f"{len(created_foods)} new, {len(updated_foods)} updated, {len(errors)} errors"
+        )
+
+        return Response(
+            {
+                "success": True,
+                "created_foods": created_foods,
+                "updated_foods": updated_foods,
+                "errors": errors,
+                "summary": {
+                    "total_processed": len(nutrition_data_list),
+                    "created_count": len(created_foods),
+                    "updated_count": len(updated_foods),
+                    "error_count": len(errors),
+                },
+                "message": f"Processed {len(nutrition_data_list)} foods: "
+                f"{len(created_foods)} created, {len(updated_foods)} updated",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    except Exception as e:
+        logger.error(f"Error in create_user_foods_from_recognition: {str(e)}")
+        return Response(
+            {"success": False, "message": f"Server error: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

@@ -41,4 +41,10 @@ urlpatterns = [
         views.analyze_image_with_barcode,
         name="analyze_image_with_barcode",
     ),
+    # User food creation from recognition
+    path(
+        "create-user-foods/",
+        views.create_user_foods_from_recognition,
+        name="create_user_foods_from_recognition",
+    ),
 ]
