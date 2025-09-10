@@ -120,6 +120,121 @@ class USDANutritionAPI:
             return None
 
 
+def get_averaged_nutrition_from_top_results(
+    usda_api: "USDANutritionAPI", search_term: str, top_count: int = 10
+) -> Optional[Dict[str, Any]]:
+    """
+    Search USDA database and return averaged nutrition from top N results
+
+    Args:
+        usda_api: USDANutritionAPI instance
+        search_term: Food name to search for (preferably English)
+        top_count: Number of top results to average (default 10)
+
+    Returns:
+        Dict containing averaged nutrition data per 100g, or None if no results
+    """
+    try:
+        # Search for foods
+        search_result = usda_api.search_foods(search_term, page_size=min(top_count, 25))
+
+        if not search_result or not search_result.get("foods"):
+            return None
+
+        foods = search_result["foods"]
+        valid_nutrition_data = []
+
+        # Get detailed nutrition for each food
+        for food in foods[:top_count]:  # Limit to top N results
+            fdc_id = food.get("fdcId")
+            if not fdc_id:
+                continue
+
+            detailed_info = usda_api.get_food_details(fdc_id)
+            nutrition_info = format_nutrition_info(detailed_info)
+
+            if nutrition_info and nutrition_info.get("nutrients"):
+                nutrients = nutrition_info["nutrients"]
+
+                # Include if we have any meaningful nutrition data (not just calories)
+                has_meaningful_data = (
+                    nutrients.get("calories", 0) > 0 or
+                    nutrients.get("protein", 0) > 0 or
+                    nutrients.get("fat", 0) > 0 or
+                    nutrients.get("carbs", 0) > 0
+                )
+                
+                if has_meaningful_data:
+                    valid_nutrition_data.append(
+                        {
+                            "description": nutrition_info["food_description"],
+                            "fdc_id": nutrition_info["fdc_id"],
+                            "nutrients": nutrients,
+                        }
+                    )
+
+        if not valid_nutrition_data:
+            return None
+
+        # Calculate averaged nutrition
+        avg_nutrients = {
+            "calories_per_100g": 0,
+            "protein_per_100g": 0,
+            "fat_per_100g": 0,
+            "carbs_per_100g": 0,
+            "fiber_per_100g": 0,
+            "sugar_per_100g": 0,
+            "sodium_per_100g": 0,
+        }
+
+        # Nutrient mapping from USDA format to our format
+        nutrient_mapping = {
+            "calories": "calories_per_100g",
+            "protein": "protein_per_100g",
+            "fat": "fat_per_100g",
+            "carbs": "carbs_per_100g",
+            "fiber": "fiber_per_100g",
+            "sugar": "sugar_per_100g",
+            "sodium": "sodium_per_100g",
+        }
+
+        valid_count = len(valid_nutrition_data)
+
+        # Sum up all nutrients with counts for proper averaging
+        nutrient_counts = {key: 0 for key in avg_nutrients}
+        
+        for data in valid_nutrition_data:
+            nutrients = data["nutrients"]
+            for usda_key, our_key in nutrient_mapping.items():
+                value = nutrients.get(usda_key, 0)
+                if value and value > 0:  # Only add positive values
+                    avg_nutrients[our_key] += value
+                    nutrient_counts[our_key] += 1
+
+        # Calculate averages only for nutrients with data
+        for key in avg_nutrients:
+            if nutrient_counts[key] > 0:
+                avg_nutrients[key] = round(avg_nutrients[key] / nutrient_counts[key], 1)
+            else:
+                # If no data available, set to 0 instead of using invalid average
+                avg_nutrients[key] = 0.0
+
+        return {
+            "success": True,
+            "search_term": search_term,
+            "valid_results_count": valid_count,
+            "total_results_found": len(foods),
+            "averaged_nutrition": avg_nutrients,
+            "source_foods": [
+                {"description": data["description"], "fdc_id": data["fdc_id"]}
+                for data in valid_nutrition_data[:5]  # Include first 5 for reference
+            ],
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e), "search_term": search_term}
+
+
 def format_nutrition_info(
     food_data: Optional[Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
@@ -139,6 +254,7 @@ def format_nutrition_info(
     # Key nutrients we care about - mapped to consistent names
     key_nutrients = {
         1008: "calories",  # Energy (kcal)
+        2047: "calories",  # Energy (kJ) - alternative energy measurement
         1003: "protein",  # Protein (g)
         1004: "fat",  # Total lipid (fat) (g)
         1005: "carbs",  # Carbohydrate, by difference (g)
@@ -159,6 +275,13 @@ def format_nutrition_info(
         if nutrient_id in key_nutrients:
             nutrient_key = key_nutrients[nutrient_id]
             amount = nutrient.get("amount", 0)
-            info["nutrients"][nutrient_key] = amount
+            
+            # Convert kJ to kcal if needed (1 kcal = 4.184 kJ)
+            if nutrient_id == 2047 and amount > 0:  # Energy (kJ)
+                amount = round(amount / 4.184, 2)  # Convert kJ to kcal
+            
+            # Only overwrite if we don't already have this nutrient or the new value is better
+            if nutrient_key not in info["nutrients"] or info["nutrients"][nutrient_key] == 0:
+                info["nutrients"][nutrient_key] = amount
 
     return info

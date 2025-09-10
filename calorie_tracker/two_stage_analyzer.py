@@ -15,7 +15,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Import OpenAI service and USDA service
 from .openai_service import get_openai_service
-from foods.usda_nutrition import USDANutritionAPI, format_nutrition_info
+from foods.usda_nutrition import (
+    USDANutritionAPI,
+    format_nutrition_info,
+    get_averaged_nutrition_from_top_results,
+)
 
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
@@ -226,14 +230,103 @@ class NutritionLookupAgent:
     async def lookup_nutrition_for_food(
         self, food_item: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Stage 2: Look up nutrition data for a single food item"""
+        """Stage 2: Look up nutrition data for a single food item using averaged top 10 results"""
 
         lookup_start = time.time()
 
         if self.config["logging"]["show_stage_progress"]:
             print(
-                f"📊 Agent #{self.agent_id}: Looking up nutrition for '{food_item.get('name', 'Unknown')}'"
+                f"📊 Agent #{self.agent_id}: Looking up averaged nutrition for '{food_item.get('name', 'Unknown')}'"
             )
+
+        # Create search terms from the food item
+        search_terms = food_item.get("search_terms", [food_item.get("name", "")])
+        cooking_method = food_item.get("cooking_method", "")
+
+        # Use the first search term or food name
+        primary_search_term = (
+            search_terms[0] if search_terms else food_item.get("name", "")
+        )
+
+        # Prefer English names if available
+        english_name = food_item.get("name_english", "")
+        if english_name and english_name.strip():
+            primary_search_term = english_name
+
+        # Add cooking method to search term if available
+        if cooking_method and cooking_method not in ["", "unknown"]:
+            primary_search_term = f"{primary_search_term} {cooking_method}"
+
+        if self.config["logging"]["enable_debug"]:
+            print(
+                f"🔍 Agent #{self.agent_id} using averaged search for: '{primary_search_term}'"
+            )
+
+        try:
+            # Try averaged nutrition lookup first
+            averaged_result = get_averaged_nutrition_from_top_results(
+                self.usda_service, primary_search_term, top_count=10
+            )
+
+            if averaged_result and averaged_result.get("success"):
+                # Successfully got averaged nutrition
+                avg_nutrition = averaged_result["averaged_nutrition"]
+
+                # Convert to the expected format
+                nutrition_per_100g = {
+                    "calories": avg_nutrition.get("calories_per_100g", 0),
+                    "protein_g": avg_nutrition.get("protein_per_100g", 0),
+                    "fat_g": avg_nutrition.get("fat_per_100g", 0),
+                    "carbs_g": avg_nutrition.get("carbs_per_100g", 0),
+                    "fiber_g": avg_nutrition.get("fiber_per_100g", 0),
+                }
+
+                result_data = {
+                    "success": True,
+                    "food_item": food_item,
+                    "agent_id": self.agent_id,
+                    "nutrition_data": {
+                        "usda_match": {
+                            "description": f"Averaged from {averaged_result['valid_results_count']} USDA sources",
+                            "fdc_id": f"averaged_from_{averaged_result['valid_results_count']}_sources",
+                            "search_term": primary_search_term,
+                            "source_count": averaged_result["valid_results_count"],
+                        },
+                        "nutrition_per_100g": nutrition_per_100g,
+                    },
+                }
+
+                if self.config["logging"]["enable_debug"]:
+                    print(
+                        f"✅ Agent #{self.agent_id} got averaged nutrition from {averaged_result['valid_results_count']} sources"
+                    )
+
+                return result_data
+
+            else:
+                # Fallback to function calling approach if averaging fails
+                if self.config["logging"]["enable_debug"]:
+                    print(
+                        f"⚠️ Agent #{self.agent_id} averaging failed, falling back to function calling"
+                    )
+
+                return await self._fallback_function_calling_lookup(
+                    food_item, primary_search_term
+                )
+
+        except Exception as e:
+            if self.config["logging"]["enable_debug"]:
+                print(f"❌ Agent #{self.agent_id} averaged lookup error: {str(e)}")
+
+            # Fallback to function calling approach on any error
+            return await self._fallback_function_calling_lookup(
+                food_item, primary_search_term
+            )
+
+    async def _fallback_function_calling_lookup(
+        self, food_item: Dict[str, Any], search_term: str
+    ) -> Dict[str, Any]:
+        """Fallback function calling approach for nutrition lookup"""
 
         # Get system message from config
         system_message = self.config.get("system_messages", {}).get(
@@ -241,18 +334,9 @@ class NutritionLookupAgent:
             "Find the best USDA nutrition match for the given food.",
         )
 
-        # Create search terms from the food item
-        search_terms = food_item.get("search_terms", [food_item.get("name", "")])
-        cooking_method = food_item.get("cooking_method", "")
-
-        # Add cooking method to search terms if not already included
-        if cooking_method and cooking_method not in ["", "unknown"]:
-            enhanced_terms = [f"{term} {cooking_method}" for term in search_terms]
-            search_terms.extend(enhanced_terms)
-
         user_message = {
             "role": "user",
-            "content": f"Find nutrition data for this food: {food_item.get('name')} ({cooking_method}). Try these search terms: {', '.join(search_terms[:3])}",
+            "content": f"Find nutrition data for this food: {food_item.get('name')} using search term: {search_term}",
         }
 
         messages = [{"role": "system", "content": system_message}, user_message]

@@ -271,7 +271,9 @@ def get_nutrition_stats(request):
         )
 
     # Handle both UTC datetime parameters and legacy date parameters
-    if serializer.validated_data.get("start_datetime_utc") and serializer.validated_data.get("end_datetime_utc"):
+    if serializer.validated_data.get(
+        "start_datetime_utc"
+    ) and serializer.validated_data.get("end_datetime_utc"):
         # Convert UTC datetime to date for service compatibility
         start_date = serializer.validated_data["start_datetime_utc"].date()
         end_date = serializer.validated_data["end_datetime_utc"].date()

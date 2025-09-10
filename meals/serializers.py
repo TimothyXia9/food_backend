@@ -189,7 +189,7 @@ class NutritionStatsSerializer(serializers.Serializer):
     # Legacy date parameters for backward compatibility
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
-    
+
     # New timezone-aware UTC datetime parameters
     start_datetime_utc = serializers.DateTimeField(required=False)
     end_datetime_utc = serializers.DateTimeField(required=False)

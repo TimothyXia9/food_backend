@@ -1642,7 +1642,12 @@ Detect barcodes in an uploaded image using computer vision.
           "width": 200,
           "height": 50
         },
-        "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+        "polygon": [
+          [100, 150],
+          [300, 150],
+          [300, 200],
+          [100, 200]
+        ],
         "is_food_barcode": true,
         "formatted_data": "1234567890123"
       }
@@ -1659,7 +1664,12 @@ Detect barcodes in an uploaded image using computer vision.
           "width": 200,
           "height": 50
         },
-        "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+        "polygon": [
+          [100, 150],
+          [300, 150],
+          [300, 200],
+          [100, 200]
+        ],
         "is_food_barcode": true,
         "formatted_data": "1234567890123"
       }
@@ -1932,7 +1942,12 @@ Perform comprehensive image analysis including both food recognition and barcode
             "width": 200,
             "height": 50
           },
-          "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+          "polygon": [
+            [100, 150],
+            [300, 150],
+            [300, 200],
+            [100, 200]
+          ],
           "is_food_barcode": true,
           "formatted_data": "1234567890123"
         }
@@ -1962,7 +1977,12 @@ Perform comprehensive image analysis including both food recognition and barcode
               "width": 200,
               "height": 50
             },
-            "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+            "polygon": [
+              [100, 150],
+              [300, 150],
+              [300, 200],
+              [100, 200]
+            ],
             "is_food_barcode": true,
             "formatted_data": "1234567890123"
           }
@@ -2007,7 +2027,12 @@ Perform comprehensive image analysis including both food recognition and barcode
               "width": 200,
               "height": 50
             },
-            "polygon": [[100, 150], [300, 150], [300, 200], [100, 200]],
+            "polygon": [
+              [100, 150],
+              [300, 150],
+              [300, 200],
+              [100, 200]
+            ],
             "is_food_barcode": true,
             "formatted_data": "1234567890123"
           }
@@ -2051,8 +2076,8 @@ Perform comprehensive image analysis including both food recognition and barcode
 | Barcode Detection | 15 requests   | 1 hour   |
 | Barcode Search    | 25 requests   | 1 hour   |
 | Food Creation     | 10 requests   | 1 hour   |
-| USDA API       | 100 requests  | 1 hour   |
-| General API    | 1000 requests | 1 hour   |
+| USDA API          | 100 requests  | 1 hour   |
+| General API       | 1000 requests | 1 hour   |
 
 ## HTTP Status Codes
 

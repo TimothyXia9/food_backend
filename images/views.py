@@ -568,11 +568,14 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
                 for food in stage1_result["food_types"]
             ]
 
-        # Stage 3: Get USDA nutrition data for identified foods
+        # Stage 3: Get USDA nutrition data for identified foods using averaged top 10 results
         stage3_result = {"nutrition_data": []}
 
         try:
-            from foods.usda_nutrition import USDANutritionAPI
+            from foods.usda_nutrition import (
+                USDANutritionAPI,
+                get_averaged_nutrition_from_top_results,
+            )
 
             usda_service = USDANutritionAPI()
 
@@ -586,89 +589,145 @@ def analyze_food_image_two_stage(image_path: str) -> dict:
                             food_type.get("name") == food_name
                             or food_type.get("name_chinese") == food_name
                         ):
-                            usda_search_term = food_type.get(
-                                "usda_search_term", food_name
-                            )
+                            # Prefer English name for better USDA search results
+                            english_name = food_type.get("name_english", "")
+                            if english_name and english_name.strip():
+                                usda_search_term = english_name
+                            else:
+                                usda_search_term = food_type.get(
+                                    "usda_search_term", food_name
+                                )
                             break
 
-                    # Search USDA for nutrition data using optimized search term
+                    # Search USDA for nutrition data using averaged top 10 results
                     logger.info(
-                        f"Searching USDA for '{food_name}' using term: '{usda_search_term}'"
-                    )
-                    usda_search_result = usda_service.search_foods(
-                        usda_search_term, page_size=3
+                        f"Searching USDA for '{food_name}' using averaged term: '{usda_search_term}'"
                     )
 
-                    if usda_search_result and usda_search_result.get("foods"):
-                        # Get the first (most relevant) result
-                        first_food = usda_search_result["foods"][0]
+                    # Get averaged nutrition from top 10 USDA results
+                    averaged_result = get_averaged_nutrition_from_top_results(
+                        usda_service, usda_search_term, top_count=10
+                    )
 
-                        # Get detailed nutrition data
-                        nutrition_data = usda_service.get_food_details(
-                            first_food.get("fdcId")
+                    if averaged_result and averaged_result.get("success"):
+                        # Use the averaged nutrition data
+                        avg_nutrition = averaged_result["averaged_nutrition"]
+
+                        nutrition_info = {
+                            "food_name": food_name,
+                            "usda_description": f"Averaged from {averaged_result['valid_results_count']} USDA sources",
+                            "fdc_id": f"averaged_from_{averaged_result['valid_results_count']}_sources",
+                            "search_term_used": usda_search_term,
+                            "source_count": averaged_result["valid_results_count"],
+                            **avg_nutrition,  # Include all averaged nutrition values
+                        }
+
+                        # Log successful averaging
+                        logger.info(
+                            f"Successfully averaged nutrition for '{food_name}' from {averaged_result['valid_results_count']} USDA sources"
                         )
 
-                        if nutrition_data:
-                            # Extract key nutrition facts
-                            nutrients = nutrition_data.get("foodNutrients", [])
-                            nutrition_info = {
-                                "food_name": food_name,
-                                "usda_description": first_food.get("description", ""),
-                                "fdc_id": first_food.get("fdcId"),
-                                "calories_per_100g": 100,  # Default fallback
-                                "protein_per_100g": 10,
-                                "fat_per_100g": 5,
-                                "carbs_per_100g": 20,
-                                "fiber_per_100g": 2,
-                                "sugar_per_100g": 5,
-                                "sodium_per_100g": 100,
-                            }
+                        stage3_result["nutrition_data"].append(nutrition_info)
+                    else:
+                        # Fallback to single result if averaging fails
+                        error_reason = averaged_result.get('error', 'Unknown error') if averaged_result else 'No result'
+                        logger.warning(
+                            f"Averaging failed for '{food_name}' (reason: {error_reason}), trying single result fallback"
+                        )
 
-                            # Map USDA nutrient data
-                            for nutrient in nutrients:
-                                nutrient_name = (
-                                    nutrient.get("nutrient", {}).get("name", "").lower()
+                        usda_search_result = usda_service.search_foods(
+                            usda_search_term, page_size=3
+                        )
+
+                        if usda_search_result and usda_search_result.get("foods"):
+                            # Get the first (most relevant) result as fallback
+                            first_food = usda_search_result["foods"][0]
+
+                            # Get detailed nutrition data
+                            nutrition_data = usda_service.get_food_details(
+                                first_food.get("fdcId")
+                            )
+
+                            if nutrition_data:
+                                # Extract key nutrition facts
+                                nutrients = nutrition_data.get("foodNutrients", [])
+                                nutrition_info = {
+                                    "food_name": food_name,
+                                    "usda_description": first_food.get(
+                                        "description", ""
+                                    ),
+                                    "fdc_id": first_food.get("fdcId"),
+                                    "search_term_used": usda_search_term,
+                                    "source_count": 1,
+                                    "calories_per_100g": 100,  # Default fallback
+                                    "protein_per_100g": 10,
+                                    "fat_per_100g": 5,
+                                    "carbs_per_100g": 20,
+                                    "fiber_per_100g": 2,
+                                    "sugar_per_100g": 5,
+                                    "sodium_per_100g": 100,
+                                }
+
+                                # Map USDA nutrient data
+                                for nutrient in nutrients:
+                                    nutrient_name = (
+                                        nutrient.get("nutrient", {})
+                                        .get("name", "")
+                                        .lower()
+                                    )
+                                    amount = nutrient.get("amount", 0)
+
+                                    if "energy" in nutrient_name and amount > 0:
+                                        nutrition_info["calories_per_100g"] = round(
+                                            amount, 1
+                                        )
+                                    elif "protein" in nutrient_name and amount > 0:
+                                        nutrition_info["protein_per_100g"] = round(
+                                            amount, 1
+                                        )
+                                    elif "total lipid" in nutrient_name and amount > 0:
+                                        nutrition_info["fat_per_100g"] = round(
+                                            amount, 1
+                                        )
+                                    elif (
+                                        "carbohydrate" in nutrient_name
+                                        and "by difference" in nutrient_name
+                                        and amount > 0
+                                    ):
+                                        nutrition_info["carbs_per_100g"] = round(
+                                            amount, 1
+                                        )
+                                    elif "fiber" in nutrient_name and amount > 0:
+                                        nutrition_info["fiber_per_100g"] = round(
+                                            amount, 1
+                                        )
+                                    elif "sugars" in nutrient_name and amount > 0:
+                                        nutrition_info["sugar_per_100g"] = round(
+                                            amount, 1
+                                        )
+                                    elif "sodium" in nutrient_name and amount > 0:
+                                        nutrition_info["sodium_per_100g"] = round(
+                                            amount, 1
+                                        )
+
+                                stage3_result["nutrition_data"].append(nutrition_info)
+                            else:
+                                # Add default nutrition data if USDA lookup fails
+                                # Add default nutrition data if USDA lookup fails
+                                logger.warning(f"USDA nutrition lookup failed for '{food_name}' - no detailed nutrition data available")
+                                stage3_result["nutrition_data"].append(
+                                    create_default_nutrition_dict(
+                                        food_name, f"USDA lookup failed for {usda_search_term}"
+                                    )
                                 )
-                                amount = nutrient.get("amount", 0)
-
-                                if "energy" in nutrient_name and amount > 0:
-                                    nutrition_info["calories_per_100g"] = round(
-                                        amount, 1
-                                    )
-                                elif "protein" in nutrient_name and amount > 0:
-                                    nutrition_info["protein_per_100g"] = round(
-                                        amount, 1
-                                    )
-                                elif "total lipid" in nutrient_name and amount > 0:
-                                    nutrition_info["fat_per_100g"] = round(amount, 1)
-                                elif (
-                                    "carbohydrate" in nutrient_name
-                                    and "by difference" in nutrient_name
-                                    and amount > 0
-                                ):
-                                    nutrition_info["carbs_per_100g"] = round(amount, 1)
-                                elif "fiber" in nutrient_name and amount > 0:
-                                    nutrition_info["fiber_per_100g"] = round(amount, 1)
-                                elif "sugars" in nutrient_name and amount > 0:
-                                    nutrition_info["sugar_per_100g"] = round(amount, 1)
-                                elif "sodium" in nutrient_name and amount > 0:
-                                    nutrition_info["sodium_per_100g"] = round(amount, 1)
-
-                            stage3_result["nutrition_data"].append(nutrition_info)
                         else:
-                            # Add default nutrition data if USDA lookup fails
+                            # Add default nutrition data if USDA search fails completely
+                            logger.warning(f"USDA search completely failed for '{food_name}' using term '{usda_search_term}' - no USDA records found")
                             stage3_result["nutrition_data"].append(
                                 create_default_nutrition_dict(
-                                    food_name, "Nutrition data not available"
+                                    food_name, f"No USDA records found for {usda_search_term}"
                                 )
                             )
-                    else:
-                        # Add default nutrition data if USDA search fails
-                        stage3_result["nutrition_data"].append(
-                            create_default_nutrition_dict(
-                                food_name, "USDA search failed"
-                            )
-                        )
         except Exception as e:
             logger.warning(f"USDA nutrition lookup failed: {str(e)}")
             # Add default nutrition data for all foods if USDA service fails
@@ -921,12 +980,90 @@ def analyze_food_image_streaming(image_path: str, image_id: int):
                 for food in stage1_result["food_types"]
             ]
 
+        # Stage 3: Get USDA nutrition data for identified foods using averaged top 10 results
+        logger.info(
+            f"Stage 3: Getting USDA nutrition for {len(stage2_result['food_portions'])} foods"
+        )
+        yield f"data: {json.dumps({'step': 'nutrition_lookup', 'message': '正在查询营养数据...', 'progress': 85})}\n\n"
+
+        stage3_result = {"nutrition_data": []}
+
+        try:
+            from foods.usda_nutrition import (
+                USDANutritionAPI,
+                get_averaged_nutrition_from_top_results,
+            )
+
+            usda_service = USDANutritionAPI()
+
+            for portion in stage2_result["food_portions"]:
+                food_name = portion.get("name", "")
+                if food_name:
+                    # Find corresponding food from stage1 for better search terms
+                    usda_search_term = food_name  # fallback
+                    for food_type in stage1_result["food_types"]:
+                        if (
+                            food_type.get("name") == food_name
+                            or food_type.get("name_chinese") == food_name
+                        ):
+                            # Prefer English name for better USDA search results
+                            english_name = food_type.get("name_english", "")
+                            if english_name and english_name.strip():
+                                usda_search_term = english_name
+                            else:
+                                usda_search_term = food_type.get(
+                                    "usda_search_term", food_name
+                                )
+                            break
+
+                    # Get averaged nutrition from top 10 USDA results
+                    averaged_result = get_averaged_nutrition_from_top_results(
+                        usda_service, usda_search_term, top_count=10
+                    )
+
+                    if averaged_result and averaged_result.get("success"):
+                        # Use the averaged nutrition data
+                        avg_nutrition = averaged_result["averaged_nutrition"]
+
+                        nutrition_info = {
+                            "food_name": food_name,
+                            "usda_description": f"Averaged from {averaged_result['valid_results_count']} USDA sources",
+                            "fdc_id": f"averaged_from_{averaged_result['valid_results_count']}_sources",
+                            "search_term_used": usda_search_term,
+                            "source_count": averaged_result["valid_results_count"],
+                            **avg_nutrition,  # Include all averaged nutrition values
+                        }
+
+                        stage3_result["nutrition_data"].append(nutrition_info)
+                        logger.info(
+                            f"Successfully averaged nutrition for '{food_name}' from {averaged_result['valid_results_count']} USDA sources"
+                        )
+                    else:
+                        # Add default nutrition data if USDA search fails
+                        error_reason = averaged_result.get('error', 'Unknown error') if averaged_result else 'No result'
+                        logger.warning(f"USDA nutrition lookup failed for '{food_name}' using term '{usda_search_term}' - {error_reason}")
+                        stage3_result["nutrition_data"].append(
+                            create_default_nutrition_dict(
+                                food_name, f"USDA search failed: {error_reason}"
+                            )
+                        )
+        except Exception as e:
+            logger.warning(f"USDA nutrition lookup failed: {str(e)}")
+            # Add default nutrition data for all foods if USDA service fails
+            for portion in stage2_result["food_portions"]:
+                stage3_result["nutrition_data"].append(
+                    create_default_nutrition_dict(
+                        portion.get("name", "Unknown"), "USDA service unavailable"
+                    )
+                )
+
         # 发送最终结果
         final_result = {
             "step": "complete",
             "success": True,
             "stage_1": stage1_result,
             "stage_2": stage2_result,
+            "stage_3": stage3_result,
             "progress": 100,
         }
         yield f"data: {json.dumps(final_result)}\n\n"
